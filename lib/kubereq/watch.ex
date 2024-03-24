@@ -1,4 +1,4 @@
-defmodule Kubereq.Client.Watch do
+defmodule Kubereq.Watch do
   @moduledoc false
 
   require Logger
