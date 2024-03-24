@@ -1,132 +1,126 @@
 defmodule Kubereq.Client do
+  @moduledoc """
+  Kubernetes Client offering functions for Kubernetes operations and using `Req`
+  to make the HTTP request.
+  """
+
   alias Kubereq.Client.Watch
 
   @type wait_until_callback :: (map() | :deleted -> boolean)
   @type name :: String.t()
   @type namespace :: String.t() | nil
-  @type watch_response :: {:ok, Enumerable.t()} | {:ok, Task.t()}
-  @type response() :: {:ok, map()}
+  @type watch_response :: {:ok, Enumerable.t(map())} | {:ok, Task.t()} | {:error, Exception.t()}
+  @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
 
-  @spec resource_path(api_version :: String.t(), resource_definition :: map()) :: String.t()
-  def resource_path(<<?v, _::integer>> = api_version, resource_definition) do
-    do_resource_path("api/#{api_version}", resource_definition)
-  end
+  @typep do_watch_response :: {:ok, Enumerable.t(map())} | {:error, Exception.t()}
 
-  def resource_path(api_version, resource_definition) do
-    do_resource_path("apis/#{api_version}", resource_definition)
-  end
+  @doc """
+  Create the `resource` object at the given `path`. The `req` object should
+  contain all necessary information to connect to the Kubernetes API Server.
 
-  @spec do_resource_path(api_version :: String.t(), resource_definition :: map()) :: String.t()
-  defp do_resource_path(api_version, %{"name" => resource_name, "namespaced" => true}) do
-    "#{api_version}/namespaces/:namespace/#{resource_name}/:name"
-  end
+  The Path should contain a placeholder for the `:namespace`. Its value will be
+  retrieved from the given `resource`.
 
-  defp do_resource_path(api_version, %{"name" => resource_name, "namespaced" => false}) do
-    "#{api_version}/#{resource_name}/:name"
-  end
+  ### Example
 
-  @spec add_ssl_opts(Req.Request.t(), keyword()) :: Req.Request.t()
-  def add_ssl_opts(req, options) do
-    connect_options = List.wrap(req.options[:connect_options])
-    transport_opts = List.wrap(connect_options[:transport_opts])
-    transport_opts = Keyword.merge(transport_opts, options)
-    connect_options = Keyword.merge(connect_options, transport_opts: transport_opts)
-    Req.merge(req, connect_options: connect_options)
-  end
-
-  @spec resource_list_path(api_version :: String.t(), resource_definition :: map()) :: String.t()
-  def resource_list_path(<<?v, _::integer>> = api_version, resource_definition) do
-    do_resource_list_path("api/#{api_version}", resource_definition)
-  end
-
-  def resource_list_path(api_version, resource_definition) do
-    do_resource_list_path("apis/#{api_version}", resource_definition)
-  end
-
-  @spec do_resource_list_path(api_version :: String.t(), resource_definition :: map()) ::
-          String.t()
-  defp do_resource_list_path(api_version, %{"name" => resource_name, "namespaced" => true}) do
-    "#{api_version}/namespaces/:namespace/#{resource_name}"
-  end
-
-  defp do_resource_list_path(api_version, %{"name" => resource_name, "namespaced" => false}) do
-    "#{api_version}/#{resource_name}"
-  end
-
+      iex> Kubereq.Client.create(req, "api/v1/namespaces/:namespace/configmaps", resource)
+      {:ok, %Req.Response{status: 201, body: %{...}}}
+  """
   @spec create(Req.Request.t(), path :: String.t(), resource :: map()) :: response()
   def create(req, path, resource) do
-    with {:ok, resp} <-
-           Req.post(req,
-             url: path,
-             json: resource,
-             path_params: [namespace: get_in(resource, ~w(metadata namespace))]
-           ) do
-      {:ok, resp.body}
-    end
+    Req.post(req,
+      url: path,
+      json: resource,
+      path_params: [namespace: get_in(resource, ~w(metadata namespace))]
+    )
   end
 
+  @doc """
+  Get the resource at the given `path`. The `req` object should
+  contain all necessary information to connect to the Kubernetes API Server.
+
+  The Path should contain a placeholder for the `:namespace` and `:name`. The
+  `namespace` and `name` params will be used to fill them.
+
+  ### Example
+
+      iex> Kubereq.Client.get(req, "api/v1/namespaces/:namespace/configmaps/:name", "default", "foo")
+      {:ok, %Req.Response{status: 200, body: %{...}}}
+  """
   @spec get(Req.Request.t(), path :: String.t(), namespace :: namespace(), name :: String.t()) ::
           response()
   def get(req, path, namespace, name) do
-    with {:ok, resp} <-
-           Req.get(req, url: path, path_params: [namespace: namespace, name: name]) do
-      {:ok, resp.body}
-    end
+    Req.get(req, url: path, path_params: [namespace: namespace, name: name])
   end
 
+  @doc """
+  Get a the resource list at the given `path`. The `req` object should
+  contain all necessary information to connect to the Kubernetes API Server.
+
+  The Path should contain a placeholder for the `:namespace`. The `namespace`
+  param will be used to fill it.
+
+  ### Examples
+
+      iex> Kubereq.Client.list(req, "api/v1/namespaces/:namespace/configmaps", "default", [])
+      {:ok, %Req.Response{status: 200, body: %{...}}}
+
+  ### Options
+
+  * `:field_selectors` - A list of field selectors. See `Kubereq.Step.FieldSelector` for more infos.
+  * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
+
+  """
   @spec list(Req.Request.t(), path :: String.t(), namespace :: namespace(), opts :: keyword()) ::
           response()
   def list(req, path, namespace, opts \\ []) do
-    with {:ok, resp} <-
-           Req.get(req,
-             url: path,
-             field_selectors: opts[:field_selectors],
-             label_selectors: opts[:label_selectors],
-             path_params: [namespace: namespace]
-           ) do
-      {:ok, resp}
-    end
+    Req.get(req,
+      url: path,
+      field_selectors: opts[:field_selectors],
+      label_selectors: opts[:label_selectors],
+      path_params: [namespace: namespace]
+    )
   end
 
+  @doc """
+  Watch resource events at the given `path`. The `req` object should
+  contain all necessary information to connect to the Kubernetes API Server.
+
+  The Path should contain a placeholder for the `:namespace`. The `namespace`
+  param will be used to fill it.
+
+  ### Examples
+
+      iex> Kubereq.Client.watch(req, "api/v1/namespaces/:namespace/configmaps", "default", [])
+      {:ok, #Function<60.48886818/2 in Stream.transform/3>}
+
+  In order to watch events in all namespaces, pass `nil` as namespace:
+
+      iex> Kubereq.Client.watch(req, "api/v1/namespaces/:namespace/configmaps", nil, [])
+      {:ok, #Function<60.48886818/2 in Stream.transform/3>}
+
+  ### Options
+
+  * `:field_selectors` - A list of field selectors. See `Kubereq.Step.FieldSelector` for more infos.
+  * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
+
+  """
   @spec watch(Req.Request.t(), path :: String.t(), namespace :: namespace(), opts :: keyword()) ::
           watch_response()
   def watch(req, path, namespace, opts) when is_list(opts) do
     resource_version = opts[:resource_version]
+    do_watch = fn -> do_watch(req, path, namespace, resource_version, opts) end
 
     case opts[:stream_to] do
       nil ->
-        do_watch(req, path, namespace, resource_version, opts)
+        do_watch.()
 
       {pid, ref} ->
-        task =
-          Task.async(fn ->
-            case do_watch(req, path, namespace, resource_version, opts) do
-              {:ok, stream} ->
-                stream
-                |> Stream.map(&send(pid, {ref, &1}))
-                |> Stream.run()
-
-              {:error, error} ->
-                send(pid, {:error, error})
-            end
-          end)
-
+        task = watch_create_task(do_watch, &send(pid, {ref, &1}))
         {:ok, task}
 
       pid ->
-        task =
-          Task.async(fn ->
-            case do_watch(req, path, namespace, resource_version, opts) do
-              {:ok, stream} ->
-                stream
-                |> Stream.map(&send(pid, &1))
-                |> Stream.run()
-
-              {:error, error} ->
-                send(pid, {:error, error})
-            end
-          end)
-
+        task = watch_create_task(do_watch, &send(pid, &1))
         {:ok, task}
     end
   end
@@ -138,27 +132,45 @@ defmodule Kubereq.Client do
   end
 
   @spec watch(
-          Req.Requst.t(),
+          Req.Request.t(),
           path :: String.t(),
           namespace :: namespace(),
           name :: String.t(),
           opts :: keyword()
-        ) :: {:ok, Enumerable.t(map())}
+        ) :: watch_response()
   def watch(req, path, namespace, name, opts) do
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
     watch(req, path, namespace, opts)
   end
 
+  @spec watch_create_task(
+          (-> do_watch_response()),
+          (map() -> any())
+        ) :: Task.t()
+  defp watch_create_task(do_watch_callback, send_callback) do
+    Task.async(fn ->
+      case do_watch_callback.() do
+        {:ok, stream} ->
+          stream
+          |> Stream.map(send_callback)
+          |> Stream.run()
+
+        {:error, error} ->
+          send_callback.({:error, error})
+      end
+    end)
+  end
+
   @spec do_watch(
-          Req.Requst.t(),
+          Req.Request.t(),
           path :: String.t(),
           namespace :: namespace(),
           resource_version :: integer() | String.t(),
           opts :: keyword()
-        ) :: {:ok, Enumerable.t()}
-  defp do_watch(req, path, namespace, nil, opts) do
-    with {:ok, podlist} <- list(req, path, namespace, opts) do
-      resource_version = podlist["metadata"]["resourceVersion"]
+        ) :: do_watch_response()
+  defp(do_watch(req, path, namespace, nil, opts)) do
+    with {:ok, resp} <- list(req, path, namespace, opts) do
+      resource_version = resp.body["metadata"]["resourceVersion"]
       do_watch(req, path, namespace, resource_version, opts)
     end
   end
@@ -173,9 +185,9 @@ defmodule Kubereq.Client do
              receive_timeout: :infinity,
              into: :self,
              params: [
-               {"watch", "1"},
-               {"allowWatchBookmarks", "1"},
-               {"resourceVersion", resource_version}
+               watch: "1",
+               allowWatchBookmarks: "1",
+               resourceVersion: resource_version
              ]
            ) do
       stream =
@@ -190,72 +202,54 @@ defmodule Kubereq.Client do
   @spec delete(Req.Request.t(), path :: String.t(), namespace :: namespace(), name :: String.t()) ::
           response()
   def delete(req, path, namespace, name) do
-    with {:ok, resp} <-
-           Req.delete(req, url: path, path_params: [namespace: namespace, name: name]) do
-      {:ok, resp.body}
-    end
+    Req.delete(req, url: path, path_params: [namespace: namespace, name: name])
   end
 
   @spec delete_all(Req.Request.t(), path :: String.t(), namespace :: namespace()) :: response()
   def delete_all(req, path, namespace) do
-    with {:ok, resp} <-
-           Req.delete(req, url: path, path_params: [namespace: namespace]) do
-      {:ok, resp.body}
-    end
+    Req.delete(req, url: path, path_params: [namespace: namespace])
   end
 
   @spec update(Req.Request.t(), path :: String.t(), resource :: map()) :: response()
   def update(req, path, resource) do
-    with {:ok, resp} <-
-           Req.put(req,
-             url: path,
-             path_params: [
-               namespace: get_in(resource, ~w(metadata namespace)),
-               name: get_in(resource, ~w(metadata name))
-             ]
-           ) do
-      {:ok, resp.body}
-    end
+    Req.put(req,
+      url: path,
+      path_params: [
+        namespace: get_in(resource, ~w(metadata namespace)),
+        name: get_in(resource, ~w(metadata name))
+      ]
+    )
   end
 
   def apply(req, path, resource, field_manager \\ "Elixir", force \\ true) do
-    with {:ok, resp} <-
-           Req.patch(req,
-             url: path,
-             path_params: [
-               namespace: get_in(resource, ~w(metadata namespace)),
-               name: get_in(resource, ~w(metadata name))
-             ],
-             headers: [{"Content-Type", "application/apply-patch+yaml"}],
-             params: [fieldManager: field_manager, force: force],
-             json: resource
-           ) do
-      {:ok, resp.body}
-    end
+    Req.patch(req,
+      url: path,
+      path_params: [
+        namespace: get_in(resource, ~w(metadata namespace)),
+        name: get_in(resource, ~w(metadata name))
+      ],
+      headers: [{"Content-Type", "application/apply-patch+yaml"}],
+      params: [fieldManager: field_manager, force: force],
+      json: resource
+    )
   end
 
   def json_patch(req, path, json_patch, namespace, name) do
-    with {:ok, resp} <-
-           Req.patch(req,
-             url: path,
-             path_params: [namespace: namespace, name: name],
-             headers: [{"Content-Type", "application/json-patch+json"}],
-             json: json_patch
-           ) do
-      {:ok, resp.body}
-    end
+    Req.patch(req,
+      url: path,
+      path_params: [namespace: namespace, name: name],
+      headers: [{"Content-Type", "application/json-patch+json"}],
+      json: json_patch
+    )
   end
 
   def merge_patch(req, path, merge_patch, namespace, name) do
-    with {:ok, resp} <-
-           Req.patch(req,
-             url: path,
-             path_params: [namespace: namespace, name: name],
-             headers: [{"Content-Type", "application/merge-patch+json"}],
-             body: merge_patch
-           ) do
-      {:ok, resp.body}
-    end
+    Req.patch(req,
+      url: path,
+      path_params: [namespace: namespace, name: name],
+      headers: [{"Content-Type", "application/merge-patch+json"}],
+      body: merge_patch
+    )
   end
 
   @doc """

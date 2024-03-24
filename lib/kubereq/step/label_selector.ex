@@ -60,12 +60,12 @@ defmodule Kubereq.Step.LabelSelector do
   end
 
   def call(%Req.Request{options: %{label_selectors: nil}} = req), do: req
+
   def call(%Req.Request{options: %{label_selectors: label_selectors}} = req) do
     label_selector =
       label_selectors
       |> List.wrap()
-      |> Enum.map(&format/1)
-      |> Enum.join(",")
+      |> Enum.map_join(",", &format/1)
 
     Req.merge(req, params: [labelSelector: label_selector])
   end

@@ -4,6 +4,7 @@ defmodule Kubereq.Step.Auth do
   """
 
   alias Kubereq.Error.StepError
+  alias Kubereq.Step.Exec
 
   @spec attach(Req.Request.t()) :: Req.Request.t()
   def attach(req) do
@@ -19,7 +20,7 @@ defmodule Kubereq.Step.Auth do
 
   @spec auth(Req.Request.t(), map()) :: Req.Request.t()
   defp auth(req, %{"client-certificate" => certfile, "client-key" => keyfile}) do
-    Kubereq.Client.add_ssl_opts(req,
+    Kubereq.Utils.add_ssl_opts(req,
       certfile: certfile,
       keyfile: keyfile
     )
@@ -29,10 +30,10 @@ defmodule Kubereq.Step.Auth do
          "client-certificate-data" => cert_data_b64,
          "client-key-data" => key_data_b64
        }) do
-    {:ok, cert} = Kubereq.Cert.cert_from_base64(cert_data_b64)
-    {:ok, key} = Kubereq.Cert.key_from_base64(key_data_b64)
+    {:ok, cert} = Kubereq.Utils.cert_from_base64(cert_data_b64)
+    {:ok, key} = Kubereq.Utils.key_from_base64(key_data_b64)
 
-    Kubereq.Client.add_ssl_opts(req, cert: cert, key: key)
+    Kubereq.Utils.add_ssl_opts(req, cert: cert, key: key)
   end
 
   defp auth(req, %{"token" => token}) do
@@ -52,17 +53,17 @@ defmodule Kubereq.Step.Auth do
     config_hash = :erlang.phash2(config)
 
     pid =
-      case Registry.lookup(Kubereq.Step.Exec, config_hash) do
+      case Registry.lookup(Exec, config_hash) do
         [] ->
-          name = {:via, Registry, {Kubereq.Step.Exec, config_hash}}
-          {:ok, pid} = Kubereq.Step.Exec.start_link(config, name: name)
+          name = {:via, Registry, {Exec, config_hash}}
+          {:ok, pid} = Exec.start_link(config, name: name)
           pid
 
         [{pid, _}] ->
           pid
       end
 
-      Req.Request.merge_options(req, exec_pid: pid)
+    Req.Request.merge_options(req, exec_pid: pid)
   end
 
   defp auth(req, _), do: req

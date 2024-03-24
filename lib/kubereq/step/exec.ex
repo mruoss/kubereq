@@ -91,7 +91,7 @@ defmodule Kubereq.Step.Exec do
       if error.reason == :enoent,
         do: IO.puts(config["installHint"] || "Command #{config["command"]} was not found")
 
-      raise error
+      reraise error, __STACKTRACE__
   end
 
   @spec parse_result(raw_result :: String.t()) ::
@@ -124,11 +124,11 @@ defmodule Kubereq.Step.Exec do
          req,
          %{"clientCertificateData" => cert_data_b64, "clientKeyData" => key_data_b64} = status
        ) do
-    {:ok, cert} = Kubereq.Cert.cert_from_base64(cert_data_b64)
-    {:ok, key} = Kubereq.Cert.key_from_base64(key_data_b64)
+    {:ok, cert} = Kubereq.Utils.cert_from_base64(cert_data_b64)
+    {:ok, key} = Kubereq.Utils.key_from_base64(key_data_b64)
 
     req
-    |> Kubereq.Client.add_ssl_opts(cert: cert, key: key)
+    |> Kubereq.Utils.add_ssl_opts(cert: cert, key: key)
     |> aggregate_req(Map.drop(status, ["clientCertificateData", "clientKeyData"]))
   end
 

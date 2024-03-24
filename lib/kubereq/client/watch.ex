@@ -1,4 +1,6 @@
 defmodule Kubereq.Client.Watch do
+  @moduledoc false
+
   require Logger
 
   @type t :: %__MODULE__{
@@ -13,7 +15,7 @@ defmodule Kubereq.Client.Watch do
     Stream.resource(
       fn -> nil end,
       fn _ ->
-        case Req.parse_message(resp, receive do: (message -> message)) do
+        case Req.parse_message(resp, receive(do: (message -> message))) do
           {:ok, :done} ->
             {:halt, nil}
 
@@ -49,12 +51,8 @@ defmodule Kubereq.Client.Watch do
   @spec lines_to_json_objects(binary()) :: [map()]
   defp lines_to_json_objects(line) do
     case Jason.decode(line) do
-      {:error, error} ->
-        Logger.error(
-          "Could not decode JSON - chunk seems to be malformed",
-          error: error
-        )
-
+      {:error, _error} ->
+        Logger.error("Could not decode JSON - chunk seems to be malformed")
         []
 
       {:ok, object} ->

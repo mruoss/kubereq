@@ -39,8 +39,10 @@ defmodule Kubereq.MixProject do
 
       # Test deps
       {:excoveralls, "~> 0.18", only: :test},
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
 
       # Dev deps
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4.0", only: [:dev, :test], runtime: false}
     ]

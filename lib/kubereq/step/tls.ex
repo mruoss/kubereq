@@ -17,7 +17,7 @@ defmodule Kubereq.Step.TLS do
   end
 
   def call(req) do
-    Kubereq.Client.add_ssl_opts(
+    Kubereq.Utils.add_ssl_opts(
       req,
       tls(req.options.kubeconfig.current_cluster)
     )
@@ -41,11 +41,11 @@ defmodule Kubereq.Step.TLS do
   end
 
   defp ca_cert!(%{"certificate-authority-data" => ca_cert_data_b64}) do
-    {:ok, cacert_data} = Kubereq.Cert.cert_from_base64(ca_cert_data_b64)
+    {:ok, cacert_data} = Kubereq.Utils.cert_from_base64(ca_cert_data_b64)
 
     {:cacerts, [cacert_data]}
   rescue
-    _ -> raise KubeconfError.new(:cert_prep_failed)
+    _ -> reraise KubeconfError.new(:cert_prep_failed), __STACKTRACE__
   end
 
   @spec sni(map()) :: {atom(), any()}
