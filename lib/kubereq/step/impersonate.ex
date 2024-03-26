@@ -1,6 +1,6 @@
 defmodule Kubereq.Step.Impersonate do
   @moduledoc """
-  Pluggable step to derive impersonation headers from the Kubeconfig.
+  Req step to derive impersonation headers from the Kubeconfig.
   """
 
   alias Kubereq.Error.StepError
@@ -11,7 +11,7 @@ defmodule Kubereq.Step.Impersonate do
   end
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(%Req.Request{options: %{kubeconfig: nil}}) do
+  def call(req) when not is_map_key(req.options, :kubeconfig) do
     raise StepError.new(:kubeconfig_not_loaded)
   end
 
@@ -24,7 +24,7 @@ defmodule Kubereq.Step.Impersonate do
     groups = for group <- List.wrap(user["as-groups"]), do: {"Impersonate-Group", group}
 
     extras =
-      for {name, values} <- List.wrap(user["as-user-extra"]), value <- values do
+      for {name, values} <- user["as-user-extra"] || %{}, value <- values do
         {"Impersonate-Extra-#{name}", value}
       end
 

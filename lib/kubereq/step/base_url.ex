@@ -1,6 +1,6 @@
 defmodule Kubereq.Step.BaseUrl do
   @moduledoc """
-  Pluggable step to derive the base URL to the cluster.
+  Req step to derive the base URL to the cluster.
   """
 
   alias Kubereq.Error.StepError
@@ -11,7 +11,7 @@ defmodule Kubereq.Step.BaseUrl do
   end
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(%Req.Request{options: %{kubeconfig: nil}}) do
+  def call(req) when not is_map_key(req.options, :kubeconfig) do
     raise StepError.new(:kubeconfig_not_loaded)
   end
 

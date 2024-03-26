@@ -1,10 +1,10 @@
 defmodule Kubereq.Step.Auth do
   @moduledoc """
-  Pluggable step to derive Req steps necessary for auth to the cluster.
+  Req step to derive Req steps necessary for auth to the cluster.
   """
 
   alias Kubereq.Error.StepError
-  alias Kubereq.Step.Exec
+  alias Kubereq.Exec
 
   @spec attach(Req.Request.t()) :: Req.Request.t()
   def attach(req) do
@@ -12,7 +12,7 @@ defmodule Kubereq.Step.Auth do
   end
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(%Req.Request{options: %{kubeconfig: nil}}) do
+  def call(req) when not is_map_key(req.options, :kubeconfig) do
     raise StepError.new(:kubeconfig_not_loaded)
   end
 
@@ -49,22 +49,31 @@ defmodule Kubereq.Step.Auth do
   end
 
   defp auth(req, %{"exec" => config}) do
-    # Start Middleware.Exec in dynamic supervisor
-    config_hash = :erlang.phash2(config)
-
-    pid =
-      case Registry.lookup(Exec, config_hash) do
-        [] ->
-          name = {:via, Registry, {Exec, config_hash}}
-          {:ok, pid} = Exec.start_link(config, name: name)
-          pid
-
-        [{pid, _}] ->
-          pid
-      end
-
-    Req.Request.merge_options(req, exec_pid: pid)
+    {:ok, exec_credential_status} = Exec.run(config)
+    aggregate_req(req, exec_credential_status)
   end
 
   defp auth(req, _), do: req
+
+  @spec aggregate_req(Req.Request.t(), map()) :: Req.Request.t()
+  defp aggregate_req(req, %{"token" => _} = status) when is_map_key(status, "token") do
+    %{"token" => token} = status
+
+    req
+    |> Req.Request.merge_options(auth: {:bearer, token})
+    |> aggregate_req(Map.delete(status, "token"))
+  end
+
+  defp aggregate_req(req, status)
+       when is_map_key(status, "clientCertificateData") and is_map_key(status, "clientKeyData") do
+    %{"clientCertificateData" => cert_data_b64, "clientKeyData" => key_data_b64} = status
+    {:ok, cert} = Kubereq.Utils.cert_from_base64(cert_data_b64)
+    {:ok, key} = Kubereq.Utils.key_from_base64(key_data_b64)
+
+    req
+    |> Kubereq.Utils.add_ssl_opts(cert: cert, key: key)
+    |> aggregate_req(Map.drop(status, ["clientCertificateData", "clientKeyData"]))
+  end
+
+  defp aggregate_req(req, _status), do: req
 end

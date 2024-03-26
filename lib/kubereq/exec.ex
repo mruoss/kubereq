@@ -1,9 +1,4 @@
-defmodule Kubereq.Step.Exec do
-  @moduledoc """
-  Req step to configure Kubeconfig `exec` authentication.
-  See: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
-  """
-
+defmodule Kubereq.Exec do
   alias Kubereq.Error.KubeconfError
 
   use GenServer
@@ -18,25 +13,22 @@ defmodule Kubereq.Step.Exec do
 
   defstruct [:exec_config, exec_credential: nil]
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
-    req
-    |> Req.Request.register_options([:exec_auth])
-    |> Req.Request.prepend_request_steps(exec: &call/1)
+  def run(config) do
+    config_hash = :erlang.phash2(config)
+
+    server =
+      case Registry.lookup(__MODULE__, config_hash) do
+        [] ->
+          name = {:via, Registry, {__MODULE__, config_hash}}
+          {:ok, pid} = start_link(config, name: name)
+          pid
+
+        [{pid, _}] ->
+          pid
+      end
+
+    GenServer.call(server, :exec_credential_status, :infinity)
   end
-
-  @spec call(Req.Request.t()) :: Req.Request.t()
-  def call(%Req.Request{options: %{exec_auth: config}} = req) do
-    {:ok, exec_credential_status} =
-      GenServer.call(config[:pid], :exec_credential_status, :infinity)
-
-    relevant_status_info = Map.delete(exec_credential_status, "expirationTimestamp")
-
-    req
-    |> aggregate_req(relevant_status_info)
-  end
-
-  def call(req), do: req
 
   @spec start_link(exec_config(), opts :: keyword()) :: GenServer.on_start()
   def start_link(exec_config, opts) do
@@ -106,31 +98,9 @@ defmodule Kubereq.Step.Exec do
     end
   end
 
-  @spec format_env(env :: map() | nil) :: [{String.t(), String.t()}]
-  defp format_env(nil), do: []
+  @spec format_env(env :: map()) :: [{String.t(), String.t()}]
 
   defp format_env(env) do
     for %{"name" => name, "value" => value} <- env, do: {name, value}
   end
-
-  @spec aggregate_req(Req.Request.t(), map()) :: Req.Request.t()
-  defp aggregate_req(req, %{"token" => token} = status) do
-    req
-    |> Req.Request.merge_options(auth: {:bearer, token})
-    |> aggregate_req(Map.delete(status, "token"))
-  end
-
-  defp aggregate_req(
-         req,
-         %{"clientCertificateData" => cert_data_b64, "clientKeyData" => key_data_b64} = status
-       ) do
-    {:ok, cert} = Kubereq.Utils.cert_from_base64(cert_data_b64)
-    {:ok, key} = Kubereq.Utils.key_from_base64(key_data_b64)
-
-    req
-    |> Kubereq.Utils.add_ssl_opts(cert: cert, key: key)
-    |> aggregate_req(Map.drop(status, ["clientCertificateData", "clientKeyData"]))
-  end
-
-  defp aggregate_req(req, _status), do: req
 end

@@ -21,11 +21,10 @@ defmodule Kubereq do
 
       defmodule MyApp.K8sClient.Core.V1.ConfigMap do
         @resource_path "api/v1/namespaces/:namespace/configmaps/:name"
-        @resource_list_path "api/v1/namespaces/:namespace/configmaps"
 
         defp req() do
           kubeconfig = Kubeconf.kubeconf(Kubeconf.Default)
-          Kubereq.new(kubeconfig, @resource_path, @resource_list_path)
+          Kubereq.new(kubeconfig, @resource_path)
         end
 
         def get(namespace, name) do
@@ -51,11 +50,9 @@ defmodule Kubereq do
   is the Kubernetes configuration in the form of a `%Kubeconf{}` struct and
   should contain all informations to connect to the Kubernetes cluster.
 
-  The two params `resource_path` and `resource_list_path` should be the paths
-  on which the Kubernetes API Server listens for requests for the targeted
-  resource. `resource_path` should contain placeholders for `:namespace` and
-  `:name`. `resource_list_path` shoudl contain a placeholder for the
-  `:namespace`
+  The parameter `resource_path` should be the path on which the Kubernetes API
+  Server listens for requests for the targeted resource. It should
+  contain placeholders for `:namespace` and `:name`
 
   ### Examples
 
@@ -63,12 +60,11 @@ defmodule Kubereq do
       ...> Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name", "api/v1/namespaces/:namespace/configmaps")
       %Request.Req{...}
   """
-  @spec new(kubeconfig :: Kubeconf.t(), resource_path :: binary(), resource_list_path :: binary()) ::
+  @spec new(kubeconfig :: Kubeconf.t(), resource_path :: binary()) ::
           Req.Request.t()
-  def new(kubeconfig, resource_path, resource_list_path) do
+  def new(kubeconfig, resource_path) do
     Req.new()
     |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
-    |> Step.Exec.attach()
     |> Step.FieldSelector.attach()
     |> Step.LabelSelector.attach()
     |> Step.Compression.attach()
@@ -79,7 +75,7 @@ defmodule Kubereq do
     |> Req.merge(
       kubeconfig: kubeconfig,
       resource_path: resource_path,
-      resource_list_path: resource_list_path
+      resource_list_path: String.replace_suffix(resource_path, "/:name", "")
     )
 
     # |> Req.Request.append_request_steps(debug: &dbg/1)

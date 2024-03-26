@@ -1,6 +1,6 @@
 defmodule Kubereq.Step.TLS do
   @moduledoc """
-  Pluggable step to derive TLS configuration from the Kubeconfig.
+  Req step to derive TLS configuration from the Kubeconfig.
   """
 
   alias Kubereq.Error.KubeconfError
@@ -12,7 +12,7 @@ defmodule Kubereq.Step.TLS do
   end
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(%Req.Request{options: %{kubeconfig: nil}}) do
+  def call(req) when not is_map_key(req.options, :kubeconfig) do
     raise StepError.new(:kubeconfig_not_loaded)
   end
 
@@ -26,7 +26,7 @@ defmodule Kubereq.Step.TLS do
   @spec tls(map()) :: keyword()
   defp tls(cluster) do
     [
-      cluster["insecure-skip-tls-verify"] && {:verify, :veriy_peer},
+      (cluster["insecure-skip-tls-verify"] && {:verify, :verify_none}) || {:verify, :verify_peer},
       ca_cert!(cluster),
       sni(cluster),
       {:customize_hostname_check, [match_fun: &check_ips_as_dns_id/2]}
@@ -48,9 +48,11 @@ defmodule Kubereq.Step.TLS do
     _ -> reraise KubeconfError.new(:cert_prep_failed), __STACKTRACE__
   end
 
+  defp ca_cert!(_), do: nil
+
   @spec sni(map()) :: {atom(), any()}
   defp sni(%{"tls-server-name" => sni}) do
-    {:server_name_indication, sni}
+    {:server_name_indication, String.to_charlist(sni)}
   end
 
   defp sni(_), do: nil

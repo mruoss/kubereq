@@ -6,7 +6,7 @@ defmodule Kubereq.Error.StepError do
 
   @errors %{
     kubeconfig_not_loaded:
-      "The KubeConfig is not loaded. Make sure to add a Kubereq.Kubeconfig.* step before this one."
+      "The KubeConfig is not loaded. Make sure to add `:kubeconf` option to the `Req.Request`"
   }
 
   @spec new(atom(), Exception.t() | nil) :: t()

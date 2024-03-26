@@ -1,6 +1,6 @@
 defmodule Kubereq.Step.Compression do
   @moduledoc """
-  Pluggable step to derive compression headers from the Kubeconfig.
+  Req step to derive compression headers from the Kubeconfig.
   """
 
   alias Kubereq.Error.StepError
@@ -11,7 +11,7 @@ defmodule Kubereq.Step.Compression do
   end
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(%Req.Request{options: %{kubeconfig: nil}}) do
+  def call(req) when not is_map_key(req.options, :kubeconfig) do
     raise StepError.new(:kubeconfig_not_loaded)
   end
 
