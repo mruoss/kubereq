@@ -105,7 +105,7 @@ defmodule Kubereq do
 
   @doc """
   Create the `resource` object.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Example
 
@@ -123,7 +123,7 @@ defmodule Kubereq do
 
   @doc """
   Get the resource `name` in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Example
 
@@ -138,7 +138,7 @@ defmodule Kubereq do
 
   @doc """
   Get a resource list.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -163,7 +163,7 @@ defmodule Kubereq do
 
   @doc """
   Deletes a resource.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -181,7 +181,7 @@ defmodule Kubereq do
 
   @doc """
   Deletes all resources in the given namespace.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -205,7 +205,7 @@ defmodule Kubereq do
 
   @doc """
   Updates the given `resource`.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -226,7 +226,7 @@ defmodule Kubereq do
 
   @doc """
   Applies the given `resource` using a Server-Side-Apply Patch.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   See the [documentation](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
   for a documentation on `field_manager` and `force` arguments.
@@ -253,7 +253,7 @@ defmodule Kubereq do
 
   @doc """
   Patches the resource `name`in `namespace` using the given `json_patch`.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -277,7 +277,7 @@ defmodule Kubereq do
 
   @doc """
   Patches the resource `name`in `namespace` using the given `merge_patch`.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -302,7 +302,7 @@ defmodule Kubereq do
   @doc """
   GET a resource and wait until the given `callback` returns true or the given
   `timeout` (ms) has expired.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Options
 
@@ -353,7 +353,7 @@ defmodule Kubereq do
 
   @doc """
   Watch events of all resources in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
@@ -398,7 +398,7 @@ defmodule Kubereq do
 
   @doc """
   Watch events of a single resources `name`in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/3`.
+  The `req` struct should have been created using `Kubereq.new/2`.
 
   ### Examples
 
