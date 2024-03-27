@@ -12,6 +12,7 @@ defmodule Kubereq.MixProject do
       version: @version,
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       docs: docs(),
       preferred_cli_env: cli_env(),
@@ -27,6 +28,9 @@ defmodule Kubereq.MixProject do
       extra_applications: [:logger]
     ]
   end
+
+  defp elixirc_paths(:test), do: ["test/support" | elixirc_paths(:prod)]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do

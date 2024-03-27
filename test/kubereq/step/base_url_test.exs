@@ -1,5 +1,5 @@
 defmodule Kubereq.Step.BaseUrlTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Kubereq.Step.BaseUrl, as: MUT
 

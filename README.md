@@ -1,6 +1,7 @@
 # Kubereq
 
-Build Kubernetes API Clients using Req with `kubereq`.
+Used by [`kubegen´](https://github.com/mruoss/kubegen) to build Resource based
+Kubernetes API clients using Req with `kubereq`.
 
 [![Module Version](https://img.shields.io/hexpm/v/kubereq.svg)](https://hex.pm/packages/kubereq)
 [![Last Updated](https://img.shields.io/github/last-commit/mruoss/kubereq.svg)](https://github.com/mruoss/kubereq/commits/main)
@@ -8,6 +9,11 @@ Build Kubernetes API Clients using Req with `kubereq`.
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/kubereq/)
 [![Total Download](https://img.shields.io/hexpm/dt/kubereq.svg)](https://hex.pm/packages/kubereq)
 [![License](https://img.shields.io/hexpm/l/kubereq.svg)](https://github.com/mruoss/kubereq/blob/main/LICENSE)
+
+While this library can be used directly, it is easier to let
+[`kubegen´](https://github.com/mruoss/kubegen) generate the API client modules
+for you. The resulting clients are then using `kubereq` to get the prepared
+`Req.Request` struct and make the requests to the Kubernetes API Server.
 
 ## Installation
 

@@ -1,5 +1,5 @@
 defmodule Kubereq.Step.ImpersonateTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Kubereq.Step.Impersonate, as: MUT
 

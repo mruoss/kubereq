@@ -1,5 +1,5 @@
 defmodule Kubereq.Step.AuthTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Kubereq.Step.Auth, as: MUT
 

@@ -23,7 +23,7 @@ defmodule Kubereq do
         @resource_path "api/v1/namespaces/:namespace/configmaps/:name"
 
         defp req() do
-          kubeconfig = Kubeconf.kubeconf(Kubeconf.Default)
+          kubeconfig = Kubeconf.load(Kubeconf.Default)
           Kubereq.new(kubeconfig, @resource_path)
         end
 
@@ -39,30 +39,27 @@ defmodule Kubereq do
   alias Kubereq.Step
 
   @type wait_until_callback :: (map() | :deleted -> boolean)
+  @type wait_until_response :: :ok | {:error, :watch_timeout}
   @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
   @type namespace :: String.t() | nil
   @type watch_response :: {:ok, Enumerable.t(map())} | {:ok, Task.t()} | {:error, Exception.t()}
 
   @typep do_watch_response :: {:ok, Enumerable.t(map())} | {:error, Exception.t()}
-
   @doc """
-  Creates a `Req.Request` struct for a specific resource. The `kubeconfig`
-  is the Kubernetes configuration in the form of a `%Kubeconf{}` struct and
-  should contain all informations to connect to the Kubernetes cluster.
-
-  The parameter `resource_path` should be the path on which the Kubernetes API
-  Server listens for requests for the targeted resource. It should
-  contain placeholders for `:namespace` and `:name`
+  Prepares a `Req.Request` struct for making HTTP requests to a Kubernetes
+  cluster. The `kubeconfig` is the Kubernetes configuration in the form of a
+  `%Kubeconf{}` struct and should contain all informations required to connect
+  to the Kubernetes cluster.
 
   ### Examples
 
-      iex> kubeconfig = Pluggable.run(%Kubeconf{}, [{Kubeconf.Default, []}])
-      ...> Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name", "api/v1/namespaces/:namespace/configmaps")
+      iex> kubeconfig = Kubeconf.load(Kubeconf.Default)
+      ...> Kubereq.new(kubeconfig)
       %Request.Req{...}
   """
-  @spec new(kubeconfig :: Kubeconf.t(), resource_path :: binary()) ::
+  @spec new(kubeconfig :: Kubeconf.t()) ::
           Req.Request.t()
-  def new(kubeconfig, resource_path) do
+  def new(kubeconfig) do
     Req.new()
     |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
     |> Step.FieldSelector.attach()
@@ -72,13 +69,38 @@ defmodule Kubereq do
     |> Step.Auth.attach()
     |> Step.Impersonate.attach()
     |> Step.BaseUrl.attach()
+    |> Req.merge(kubeconfig: kubeconfig)
+  end
+
+  @doc """
+  Prepares a `Req.Request` struct for a specific resource on a specific
+  Kubernetes cluster. The `kubeconfig` is the Kubernetes configuration in the
+  form of a `%Kubeconf{}` struct and should contain all informations required to
+  connect to the Kubernetes cluster.
+
+  The parameter `resource_path` should be the path on which the Kubernetes API
+  Server listens for requests for the targeted resource kind. It should
+  contain placeholders for `:namespace` and `:name`.
+
+  The `:namespace` and `:name` are provided through the `:path_params` option
+  built into `Req` when making the request.
+
+  ### Examples
+
+  Prepare a `Req.Request` for ConfigMaps:
+
+      iex> kubeconfig = Kubeconf.load(Kubeconf.Default)
+      ...> Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
+      %Request.Req{...}
+  """
+  @spec new(kubeconfig :: Kubeconf.t(), resource_path :: binary()) ::
+          Req.Request.t()
+  def new(kubeconfig, resource_path) do
+    new(kubeconfig)
     |> Req.merge(
-      kubeconfig: kubeconfig,
       resource_path: resource_path,
       resource_list_path: String.replace_suffix(resource_path, "/:name", "")
     )
-
-    # |> Req.Request.append_request_steps(debug: &dbg/1)
   end
 
   @doc """
@@ -194,6 +216,7 @@ defmodule Kubereq do
   def update(req, resource) do
     Req.put(req,
       url: req.options.resource_path,
+      json: resource,
       path_params: [
         namespace: get_in(resource, ~w(metadata namespace)),
         name: get_in(resource, ~w(metadata name))
@@ -272,7 +295,7 @@ defmodule Kubereq do
       url: req.options.resource_path,
       path_params: [namespace: namespace, name: name],
       headers: [{"Content-Type", "application/merge-patch+json"}],
-      body: merge_patch
+      json: merge_patch
     )
   end
 
@@ -290,14 +313,20 @@ defmodule Kubereq do
           namespace :: namespace(),
           name :: String.t(),
           callback :: wait_until_callback()
-        ) :: response()
+        ) :: wait_until_response()
   def wait_until(req, namespace, name, callback, timeout \\ 10_000) do
     ref = make_ref()
     opts = [field_selectors: [{"metadata.name", name}], stream_to: {self(), ref}]
 
-    with {:ok, list} <- list(req, namespace, opts),
-         {:init, false} <- {:init, callback.(List.first(list["items"]))} do
-      {:ok, watch_task} = watch(req, namespace, opts)
+    with {:ok, resp} <- list(req, namespace, opts),
+         {:init, false} <- {:init, callback.(List.first(resp.body["items"]) || :deleted)} do
+      {:ok, watch_task} =
+        watch(
+          req,
+          namespace,
+          Keyword.put(opts, :resource_version, resp.body["metadata"]["resourceVersion"])
+        )
+
       timer = Process.send_after(self(), {ref, :timeout}, timeout)
       result = wait_event_loop(ref, callback)
       Task.shutdown(watch_task)
@@ -338,6 +367,8 @@ defmodule Kubereq do
 
   ### Options
 
+  * `:resource_version` - If given, starts to stream from the given `resourceVersion` of the resource list. Otherwise starts streaming from HEAD.
+  * `:stream_to` - If set to a `pid`, streams events to the given pid. If set to `{pid, ref}`, the messages are in the form `{ref, event}`.
   * `:field_selectors` - A list of field selectors. See `Kubereq.Step.FieldSelector` for more infos.
   * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
   """
@@ -381,8 +412,8 @@ defmodule Kubereq do
 
   ### Options
 
-  * `:field_selectors` - A list of field selectors. See `Kubereq.Step.FieldSelector` for more infos.
-  * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
+  * `:stream_to` - If set to a `pid`, streams events to the given pid. If set to `{pid, ref}`, the messages are in the form `{ref, event}`
+
   """
   @spec watch_single(
           Req.Request.t(),

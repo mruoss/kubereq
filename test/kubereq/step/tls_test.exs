@@ -1,5 +1,5 @@
 defmodule Kubereq.Step.TLSTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Kubereq.Step.TLS, as: MUT
 
