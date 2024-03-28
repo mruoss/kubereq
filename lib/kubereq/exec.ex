@@ -1,4 +1,6 @@
 defmodule Kubereq.Exec do
+  @moduledoc false
+
   alias Kubereq.Error.KubeconfError
 
   use GenServer

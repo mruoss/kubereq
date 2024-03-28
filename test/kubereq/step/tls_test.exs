@@ -8,12 +8,12 @@ defmodule Kubereq.Step.TLSTest do
   end
 
   test "sets the verify option" do
-    kubeconfig = Kubeconf.new!(current_cluster: %{"server" => "https://example.com"})
+    kubeconfig = Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
     req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
     assert :verify_peer === get_in(req.options, ~w"connect_options transport_opts verify"a)
 
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{"server" => "https://example.com", "insecure-skip-tls-verify" => true}
       )
 
@@ -23,7 +23,7 @@ defmodule Kubereq.Step.TLSTest do
 
   test "sets the cacertfile option" do
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{
           "server" => "https://example.com",
           "certificate-authority" => "/path/to/ca.crt"
@@ -38,7 +38,7 @@ defmodule Kubereq.Step.TLSTest do
 
   test "sets the cacert option" do
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{
           "server" => "https://example.com",
           "certificate-authority-data" =>
@@ -55,7 +55,7 @@ defmodule Kubereq.Step.TLSTest do
 
   test "sets the SNI option" do
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{
           "server" => "https://example.com",
           "tls-server-name" => "localhost"

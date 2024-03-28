@@ -9,7 +9,7 @@ defmodule Kubereq.Step.CompressionTest do
 
   test "enables compression by default" do
     kubeconfig =
-      Kubeconf.new!(current_cluster: %{"server" => "https://example.com"})
+      Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
 
     req =
       kubeconfig
@@ -27,7 +27,7 @@ defmodule Kubereq.Step.CompressionTest do
 
   test "enables compression upon request" do
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{"server" => "https://example.com", "disable-compression" => false}
       )
 
@@ -45,7 +45,7 @@ defmodule Kubereq.Step.CompressionTest do
 
   test "disables compression upon request" do
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{"server" => "https://example.com", "disable-compression" => true}
       )
 
@@ -63,7 +63,7 @@ defmodule Kubereq.Step.CompressionTest do
 
   test "disables compression if request body is nil" do
     kubeconfig =
-      Kubeconf.new!(current_cluster: %{"server" => "https://example.com"})
+      Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
 
     kubeconfig
     |> Kubereq.new("unused")

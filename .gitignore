@@ -27,3 +27,6 @@ kubereq-*.tar
 
 # Ignore dialyzer files
 /priv/plts/
+
+# integration cluster config
+/test/support/kubeconfig-integration.yaml
