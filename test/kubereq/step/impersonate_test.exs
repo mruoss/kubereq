@@ -10,7 +10,7 @@ defmodule Kubereq.Step.ImpersonateTest do
   @tag :wip
   test "Sets impersonation headers" do
     kubeconfig =
-      Kubeconf.new!(
+      Kubereq.Kubeconfig.new!(
         current_cluster: %{"server" => "https://example.com"},
         current_user: %{
           "as" => "calvin",

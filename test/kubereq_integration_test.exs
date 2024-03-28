@@ -4,7 +4,7 @@ defmodule KubereqIntegrationTest do
   import YamlElixir.Sigil
 
   @cluster_name "kubereq"
-  @kubeconfig_path "test/support/kubeconfig.yaml"
+  @kubeconfig_path "test/support/kubeconfig-integration.yaml"
   @resource_path_ns "api/v1/namespaces/:name"
   @resource_path_cm "api/v1/namespaces/:namespace/configmaps/:name"
   @namespace "integrationtest"
@@ -26,7 +26,11 @@ defmodule KubereqIntegrationTest do
         )
     end
 
-    kubeconf = Kubeconf.load({Kubeconf.File, path: "test/support/kubeconfig.yaml"})
+    kubeconf =
+      Kubereq.Kubeconfig.load(
+        {Kubereq.Kubeconfig.File, path: "test/support/kubeconfig-integration.yaml"}
+      )
+
     req_ns = Kubereq.new(kubeconf, @resource_path_ns)
     req_cm = Kubereq.new(kubeconf, @resource_path_cm)
 

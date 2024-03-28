@@ -8,7 +8,7 @@ defmodule Kubereq.Step.BaseUrlTest do
   end
 
   test "sets the base url" do
-    kubeconfig = Kubeconf.new!(current_cluster: %{"server" => "https://example.com"})
+    kubeconfig = Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
 
     kubeconfig
     |> Kubereq.new("unused")

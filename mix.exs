@@ -39,7 +39,6 @@ defmodule Kubereq.MixProject do
       {:pluggable, "~> 1.0"},
       {:req, "~> 0.4.0"},
       {:yaml_elixir, "~> 2.0"},
-      {:kubeconf, path: "../kubeconf"},
 
       # Test deps
       {:excoveralls, "~> 0.18", only: :test},
@@ -55,8 +54,7 @@ defmodule Kubereq.MixProject do
 
   defp docs do
     [
-      # The main page in the docs
-      # main: "Pluggable.Token",
+      main: "readme",
       source_ref: @version,
       source_url: @source_url,
       extras: [
@@ -89,7 +87,7 @@ defmodule Kubereq.MixProject do
         "Changelog" => "https://hexdocs.pm/#{@app}/changelog.html",
         "Sponsor" => "https://github.com/sponsors/mruoss"
       },
-      files: ["lib", "mix.exs", "README.md", "LICENSE", "CHANGELOG.md", ".formatter.exs"]
+      files: ["lib", "mix.exs", "README.md", "LICENSE.md", "CHANGELOG.md", ".formatter.exs"]
     ]
   end
 

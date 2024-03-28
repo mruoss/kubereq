@@ -1,11 +1,11 @@
 defmodule Kubereq do
   @moduledoc ~S"""
   Kubereq defines a set of Request Steps for `Req`. All steps combined turn
-  a Kubernetes configuration in the form of a `%Kubeconf{}` struct into a
+  a Kubernetes configuration in the form of a `%Kubereq.Kubeconfig{}` struct into a
   `%Req.Request{}` struct containing all headers and options required to
   connect to the cluster and perform the given operations.
 
-  In order to build `%Kubeconf{}` struct you can either use the steps defined
+  In order to build `%Kubereq.Kubeconfig{}` struct you can either use the steps defined
   in the `Kubeconf` library or create your own Kubernetes configuration loader
   module combining those steps.
 
@@ -23,7 +23,7 @@ defmodule Kubereq do
         @resource_path "api/v1/namespaces/:namespace/configmaps/:name"
 
         defp req() do
-          kubeconfig = Kubeconf.load(Kubeconf.Default)
+          kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
           Kubereq.new(kubeconfig, @resource_path)
         end
 
@@ -48,16 +48,16 @@ defmodule Kubereq do
   @doc """
   Prepares a `Req.Request` struct for making HTTP requests to a Kubernetes
   cluster. The `kubeconfig` is the Kubernetes configuration in the form of a
-  `%Kubeconf{}` struct and should contain all informations required to connect
+  `%Kubereq.Kubeconfig{}` struct and should contain all informations required to connect
   to the Kubernetes cluster.
 
   ### Examples
 
-      iex> kubeconfig = Kubeconf.load(Kubeconf.Default)
+      iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
       ...> Kubereq.new(kubeconfig)
       %Request.Req{...}
   """
-  @spec new(kubeconfig :: Kubeconf.t()) ::
+  @spec new(kubeconfig :: Kubereq.Kubeconfig.t()) ::
           Req.Request.t()
   def new(kubeconfig) do
     Req.new()
@@ -75,7 +75,7 @@ defmodule Kubereq do
   @doc """
   Prepares a `Req.Request` struct for a specific resource on a specific
   Kubernetes cluster. The `kubeconfig` is the Kubernetes configuration in the
-  form of a `%Kubeconf{}` struct and should contain all informations required to
+  form of a `%Kubereq.Kubeconfig{}` struct and should contain all informations required to
   connect to the Kubernetes cluster.
 
   The parameter `resource_path` should be the path on which the Kubernetes API
@@ -89,11 +89,11 @@ defmodule Kubereq do
 
   Prepare a `Req.Request` for ConfigMaps:
 
-      iex> kubeconfig = Kubeconf.load(Kubeconf.Default)
+      iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
       ...> Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
       %Request.Req{...}
   """
-  @spec new(kubeconfig :: Kubeconf.t(), resource_path :: binary()) ::
+  @spec new(kubeconfig :: Kubereq.Kubeconfig.t(), resource_path :: binary()) ::
           Req.Request.t()
   def new(kubeconfig, resource_path) do
     new(kubeconfig)
