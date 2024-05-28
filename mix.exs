@@ -37,7 +37,7 @@ defmodule Kubereq.MixProject do
     [
       {:jason, "~> 1.0"},
       {:pluggable, "~> 1.0"},
-      {:req, "~> 0.4.0"},
+      {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.0"},
 
       # Test deps
