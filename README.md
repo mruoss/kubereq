@@ -38,7 +38,7 @@ resource kind you need. Check out [`kubegen`](https://github.com/mruoss/kubegen)
 
 ## Build your own clients
 
-### Define how to load the Kubernetes Config
+### Define how to load the Kubernetes Config
 
 In order to get started quickly, you can just use the default pipeline
 (`Kubereq.Kubeconfig.Default`) which tries to load the Kubernetes configuration
@@ -62,7 +62,7 @@ defmodule Kubereq.Kubeconfig.Default do
 end
 ```
 
-### Load the Kubernetes Config
+### Load the Kubernetes Config
 
 With the pipeline defined or implemented, you can now call
 `Kubereq.Kubeconfig.load/1` to load the config:
