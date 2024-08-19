@@ -18,6 +18,7 @@ defmodule Kubereq.Kubeconfig do
           clusters: list(map()),
           users: list(map()),
           contexts: list(map()),
+          current_context: String.t(),
           current_cluster: map(),
           current_user: map(),
           halted: boolean(),
@@ -27,6 +28,7 @@ defmodule Kubereq.Kubeconfig do
   defstruct clusters: [],
             users: [],
             contexts: [],
+            current_context: nil,
             current_cluster: nil,
             current_user: nil,
             halted: false,
@@ -62,7 +64,11 @@ defmodule Kubereq.Kubeconfig do
         "user"
       ])
 
-    struct!(kubeconfig, current_cluster: current_cluster, current_user: current_user)
+    struct!(kubeconfig,
+      current_cluster: current_cluster,
+      current_user: current_user,
+      current_context: current_context
+    )
   end
 
   @doc """

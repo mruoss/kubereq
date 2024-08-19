@@ -16,7 +16,8 @@ defmodule Kubereq.Kubeconfig.ENV do
 
   * `env_var` - (optional) The name of the environment variable. Defaults to
     `KUBECONFIG`
-  * `!` - (optional. And yes, that's a valid atom)
+  * `!` - (optional. And yes, that's a valid atom) Raise an exception if the
+    env var not found. Defaults to `false`.
   """
 
   alias Kubereq.Kubeconfig.File

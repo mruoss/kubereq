@@ -51,10 +51,12 @@ defmodule Kubereq.Kubeconfig.File do
       raise ArgumentError, "Please pass a :path option contatining the path to the config file."
     end
 
+    path = Path.expand(opts[:path])
+
     path =
       if opts[:relative_to_home?],
-        do: Path.join(System.user_home!(), opts[:path]),
-        else: opts[:path]
+        do: Path.join(System.user_home!(), path),
+        else: path
 
     raise? = Keyword.get(opts, :!, false)
 

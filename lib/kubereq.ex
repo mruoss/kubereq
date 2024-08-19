@@ -312,7 +312,8 @@ defmodule Kubereq do
           Req.Request.t(),
           namespace :: namespace(),
           name :: String.t(),
-          callback :: wait_until_callback()
+          callback :: wait_until_callback(),
+          timeout :: non_neg_integer()
         ) :: wait_until_response()
   def wait_until(req, namespace, name, callback, timeout \\ 10_000) do
     ref = make_ref()

@@ -103,6 +103,6 @@ defmodule Kubereq.Exec do
   @spec format_env(env :: map()) :: [{String.t(), String.t()}]
 
   defp format_env(env) do
-    for %{"name" => name, "value" => value} <- env, do: {name, value}
+    for %{"name" => name, "value" => value} <- List.wrap(env), do: {name, value}
   end
 end

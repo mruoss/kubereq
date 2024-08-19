@@ -25,6 +25,7 @@ defmodule Kubereq.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Kubereq.Application, []},
       extra_applications: [:logger]
     ]
   end
