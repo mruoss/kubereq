@@ -13,7 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
-## 0.1.3 - 2024-06-13
+## 0.1.4 - 2024-08-11
+
+### Fixed
+
+- `Kubereq.Kubeconfig.File`: Only expand path if not relative to HOME.
+
+## 0.1.3 - 2024-08-19
 
 ### Fixed
 
