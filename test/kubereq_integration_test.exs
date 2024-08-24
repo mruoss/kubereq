@@ -114,6 +114,27 @@ defmodule KubereqIntegrationTest do
     assert :ok == result
   end
 
+  test "Wait until returns error when deleted", %{req_cm: req, example_config_1: example_config_1} do
+    {:ok, resp} = Kubereq.create(req, example_config_1)
+    assert 201 == resp.status
+
+    {:ok, resp} = Kubereq.delete(req, @namespace, example_config_1["metadata"]["name"])
+    assert 200 = resp.status
+
+    result =
+      Kubereq.wait_until(
+        req,
+        @namespace,
+        example_config_1["metadata"]["name"],
+        fn
+          :deleted -> {:error, "Deleted"}
+          _ -> false
+        end
+      )
+
+    assert {:error, "Deleted"} == result
+  end
+
   @tag :integration
   test "List resources", %{
     req_cm: req,

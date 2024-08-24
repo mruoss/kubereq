@@ -13,7 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
-## 0.1.4 - 2024-08-11
+## 0.1.5 - 2024-08-24
+
+### Added
+
+- `Kubereq.wait_until/5`: Support returning `{:error, error}` tuple in the callback
+
+## 0.1.4 - 2024-08-21
 
 ### Fixed
 

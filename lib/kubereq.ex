@@ -38,7 +38,7 @@ defmodule Kubereq do
   """
   alias Kubereq.Step
 
-  @type wait_until_callback :: (map() | :deleted -> boolean)
+  @type wait_until_callback :: (map() | :deleted -> boolean | {:error, any})
   @type wait_until_response :: :ok | {:error, :watch_timeout}
   @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
   @type namespace :: String.t() | nil
@@ -335,6 +335,7 @@ defmodule Kubereq do
       result
     else
       {:init, true} -> :ok
+      {:init, {:error, error}} -> {:error, error}
       {:error, error} -> {:error, error}
     end
   end
@@ -342,7 +343,12 @@ defmodule Kubereq do
   defp wait_event_loop(ref, callback) do
     receive do
       {^ref, %{"type" => "DELETED"}} ->
-        if callback.(:deleted), do: :ok, else: wait_event_loop(ref, callback)
+        case callback.(:deleted) do
+          true -> :ok
+          false -> :ok
+          :ok -> :ok
+          {:error, error} -> {:error, error}
+        end
 
       {^ref, %{"object" => resource}} ->
         if callback.(resource), do: :ok, else: wait_event_loop(ref, callback)
