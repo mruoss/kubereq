@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.1.6 - 2024-08-25
+
+### Fixed
+
+- `Kubereq.Kubeconfig.ServiceAccount`: make server key a binary
+
 ## 0.1.5 - 2024-08-24
 
 ### Added

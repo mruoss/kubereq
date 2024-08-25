@@ -62,7 +62,7 @@ defmodule Kubereq.Kubeconfig.ServiceAccount do
           "name" => "default",
           "cluster" => %{
             "certificate-authority" => ca_file,
-            server: "https://#{apiserver_host}:#{apiserver_port}"
+            "server" => "https://#{apiserver_host}:#{apiserver_port}"
           }
         }
 
