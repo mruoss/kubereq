@@ -69,6 +69,7 @@ defmodule Kubereq do
     |> Step.Auth.attach()
     |> Step.Impersonate.attach()
     |> Step.BaseUrl.attach()
+    |> Step.Plug.attach()
     |> Req.merge(kubeconfig: kubeconfig)
   end
 
@@ -109,7 +110,7 @@ defmodule Kubereq do
 
   ### Example
 
-      iex> Kubereq.Client.create(req, resource)
+      iex> Kubereq.create(req, resource)
       {:ok, %Req.Response{status: 201, body: %{...}}}
   """
   @spec create(Req.Request.t(), resource :: map()) :: response()
@@ -127,7 +128,7 @@ defmodule Kubereq do
 
   ### Example
 
-      iex> Kubereq.Client.get(req, "default", "foo")
+      iex> Kubereq.get(req, "default", "foo")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec get(Req.Request.t(), namespace :: namespace(), name :: String.t()) ::
@@ -142,7 +143,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.list(req, "api/v1/namespaces/:namespace/configmaps", "default", [])
+      iex> Kubereq.list(req, "api/v1/namespaces/:namespace/configmaps", "default", [])
       {:ok, %Req.Response{status: 200, body: %{...}}}
 
   ### Options
@@ -167,7 +168,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.delete(req, "default", "foo")
+      iex> Kubereq.delete(req, "default", "foo")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec delete(Req.Request.t(), namespace :: namespace(), name :: String.t()) ::
@@ -185,7 +186,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.delete_all(req, "default", "foo")
+      iex> Kubereq.delete_all(req, "default", "foo")
       {:ok, %Req.Response{...}
 
   ### Options
@@ -209,7 +210,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.update(req, %{...})
+      iex> Kubereq.update(req, %{...})
       {:ok, %Req.Response{...}
   """
   @spec update(Req.Request.t(), resource :: map()) :: response()
@@ -233,7 +234,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.apply(req, %{...})
+      iex> Kubereq.apply(req, %{...})
       {:ok, %Req.Response{...}
   """
   @spec apply(Req.Request.t(), resource :: map(), field_manager :: binary(), force :: boolean()) ::
@@ -257,7 +258,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.json_patch(req, %{...}, "default", "foo")
+      iex> Kubereq.json_patch(req, %{...}, "default", "foo")
       {:ok, %Req.Response{...}
   """
   @spec json_patch(
@@ -281,7 +282,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.merge_patch(req, %{...}, "default", "foo")
+      iex> Kubereq.merge_patch(req, %{...}, "default", "foo")
       {:ok, %Req.Response{...}
   """
   @spec merge_patch(
@@ -364,12 +365,12 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.watch(req, "default", [])
+      iex> Kubereq.watch(req, "default", [])
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
   In order to watch events in all namespaces, pass `nil` as namespace:
 
-      iex> Kubereq.Client.watch(req, nil, [])
+      iex> Kubereq.watch(req, nil, [])
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
   ### Options
@@ -409,12 +410,12 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.Client.watch_single(req, "default", [])
+      iex> Kubereq.watch_single(req, "default", [])
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
   In order to watch events in all namespaces, pass `nil` as namespace:
 
-      iex> Kubereq.Client.watch_single(req, nil, [])
+      iex> Kubereq.watch_single(req, nil, [])
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
   ### Options
