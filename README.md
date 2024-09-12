@@ -120,3 +120,11 @@ req = Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
 
 `resp` is a `Req.Response.t()` and you can check for `req.status` and get
 `req.body` etc.
+
+## Testing / Stubbing
+
+Since `kubereq` is using `Req` under the hood, we can use
+[`Req.Test`](https://hexdocs.pm/req/Req.Test.html) to run requests through
+mocks/stubs. Use the special `Kubereq.Kubeconfig.Stub` to set stubs on the
+resulting `Req.Request` structs. See `Kubereq.Kubeconfig.Stub` for further
+documentation
