@@ -56,7 +56,7 @@ defmodule Kubereq.MixProject do
   defp docs do
     [
       main: "readme",
-      source_ref: @version,
+      source_ref: "v#{@version}",
       source_url: @source_url,
       extras: [
         "README.md",
