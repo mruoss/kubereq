@@ -11,7 +11,7 @@ defmodule Kubereq.Step.PlugTest do
 
   test "sets a single plug on the req" do
     Req.Test.stub(Kubereq.Step.PlugTest, fn conn ->
-      assert conn.host == "stub.local"
+      assert conn.host == "default"
       Plug.Conn.send_resp(conn, 200, "Plug called")
     end)
 
@@ -31,8 +31,15 @@ defmodule Kubereq.Step.PlugTest do
   end
 
   test "sets multiple plugs on the req" do
-    Req.Test.stub(Kubereq.Step.Foo, &Plug.Conn.send_resp(&1, 200, "Foo called"))
-    Req.Test.stub(Kubereq.Step.Bar, &Plug.Conn.send_resp(&1, 200, "Bar called"))
+    Req.Test.stub(Kubereq.Step.Foo, fn conn ->
+      assert conn.host == "foo"
+      Plug.Conn.send_resp(conn, 200, "Foo called")
+    end)
+
+    Req.Test.stub(Kubereq.Step.Bar, fn conn ->
+      assert conn.host == "bar"
+      Plug.Conn.send_resp(conn, 200, "Bar called")
+    end)
 
     plugs = %{
       "foo" => {Req.Test, Kubereq.Step.Foo},

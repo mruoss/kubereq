@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.1.8 - 2024-09-14
+
+### Changed
+
+- `Kubereq.Kubeconfig.Stub`: Set server url to context name
+
 ## 0.1.7 - 2024-09-12
 
 ### Added
