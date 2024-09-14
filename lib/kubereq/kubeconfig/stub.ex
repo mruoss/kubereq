@@ -120,7 +120,7 @@ defmodule Kubereq.Kubeconfig.Stub do
         {clusters, contexts} ->
           cluster = %{
             "name" => context_name,
-            "cluster" => %{"plug" => plug, "server" => "http://stub.local"}
+            "cluster" => %{"plug" => plug, "server" => "https://#{context_name}"}
           }
 
           context = %{
