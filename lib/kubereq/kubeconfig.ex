@@ -96,7 +96,7 @@ defmodule Kubereq.Kubeconfig do
         Kubereq.Kubeconfig.ServiceAccount
       ])
   """
-  @spec load(pipeline :: module()) :: t()
+  @spec load(pipeline :: module() | {module(), keyword()}) :: t()
   def load(pipeline) do
     pipeline =
       pipeline
