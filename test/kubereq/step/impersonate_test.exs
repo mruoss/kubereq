@@ -4,7 +4,9 @@ defmodule Kubereq.Step.ImpersonateTest do
   alias Kubereq.Step.Impersonate, as: MUT
 
   test "raises if no kubeconfig" do
-    assert_raise Kubereq.Error.StepError, fn -> MUT.call(Req.new()) end
+    {_req, error} = MUT.call(Req.new())
+    assert is_struct(error, Kubereq.Error.StepError)
+    assert error.code == :kubeconfig_not_loaded
   end
 
   @tag :wip
