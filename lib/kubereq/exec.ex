@@ -22,8 +22,11 @@ defmodule Kubereq.Exec do
       case Registry.lookup(__MODULE__, config_hash) do
         [] ->
           name = {:via, Registry, {__MODULE__, config_hash}}
-          {:ok, pid} = start_link(config, name: name)
-          pid
+
+          case start_link(config, name: name) do
+            {:ok, pid} -> pid
+            {:error, {:already_started, pid}} -> pid
+          end
 
         [{pid, _}] ->
           pid
@@ -89,7 +92,7 @@ defmodule Kubereq.Exec do
               :exec_cmd_failed,
               message:
                 config["installHint"] ||
-                  ~s'Exec command "#{config["command"]}" defined in your Kubeconfig was not found.',
+                  ~s|Could not find exec command "#{config["command"]}" (defined in your Kubeconfig) in PATH.|,
               upstream: error
             )
 
