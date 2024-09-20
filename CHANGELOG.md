@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.2.0 - 2024-09-20
+
+### Changed
+
+- `exec` auth and other steps now return errors instead of raising exceptions. [#30](https://github.com/mruoss/kubereq/pull/30)
+
 ## 0.1.8 - 2024-09-14
 
 ### Changed
