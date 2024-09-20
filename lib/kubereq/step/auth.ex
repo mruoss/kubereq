@@ -13,7 +13,7 @@ defmodule Kubereq.Step.Auth do
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req) when not is_map_key(req.options, :kubeconfig) do
-    raise StepError.new(:kubeconfig_not_loaded)
+    {req, StepError.new(:kubeconfig_not_loaded)}
   end
 
   def call(req), do: auth(req, req.options.kubeconfig.current_user)
@@ -49,8 +49,13 @@ defmodule Kubereq.Step.Auth do
   end
 
   defp auth(req, %{"exec" => config}) do
-    {:ok, exec_credential_status} = Exec.run(config)
-    aggregate_req(req, exec_credential_status)
+    case Exec.run(config) do
+      {:ok, exec_credential_status} ->
+        aggregate_req(req, exec_credential_status)
+
+      {:error, error} ->
+        {req, error}
+    end
   end
 
   defp auth(req, _), do: req

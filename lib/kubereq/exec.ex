@@ -22,8 +22,11 @@ defmodule Kubereq.Exec do
       case Registry.lookup(__MODULE__, config_hash) do
         [] ->
           name = {:via, Registry, {__MODULE__, config_hash}}
-          {:ok, pid} = start_link(config, name: name)
-          pid
+
+          case start_link(config, name: name) do
+            {:ok, pid} -> pid
+            {:error, {:already_started, pid}} -> pid
+          end
 
         [{pid, _}] ->
           pid
@@ -82,10 +85,34 @@ defmodule Kubereq.Exec do
     parse_result(raw_result)
   rescue
     error in ErlangError ->
-      if error.reason == :enoent,
-        do: IO.puts(config["installHint"] || "Command #{config["command"]} was not found")
+      err =
+        case error.original do
+          :enoent ->
+            KubeconfError.new(
+              :exec_cmd_failed,
+              message:
+                config["installHint"] ||
+                  ~s|Could not find exec command "#{config["command"]}" (defined in your Kubeconfig) in PATH.|,
+              upstream: error
+            )
 
-      reraise error, __STACKTRACE__
+          :eacces ->
+            KubeconfError.new(
+              :exec_cmd_failed,
+              message:
+                config["installHint"] ||
+                  ~s'Exec command "#{config["command"]}" defined in your Kubeconfig is not executable.',
+              upstream: error
+            )
+
+          _ ->
+            KubeconfError.new(:exec_cmd_failed, upstream: error)
+        end
+
+      {:error, err}
+
+    error ->
+      {:error, error}
   end
 
   @spec parse_result(raw_result :: String.t()) ::
@@ -96,7 +123,7 @@ defmodule Kubereq.Exec do
         {:ok, contents}
 
       {:error, error} ->
-        {:error, KubeconfError.new(:exec_conf_decode_failed, error)}
+        {:error, KubeconfError.new(:exec_conf_decode_failed, upstream: error)}
     end
   end
 

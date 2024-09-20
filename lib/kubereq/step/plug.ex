@@ -12,7 +12,7 @@ defmodule Kubereq.Step.Plug do
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req) when not is_map_key(req.options, :kubeconfig) do
-    raise StepError.new(:kubeconfig_not_loaded)
+    {req, StepError.new(:kubeconfig_not_loaded)}
   end
 
   def call(req) do
