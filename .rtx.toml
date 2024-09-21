@@ -1,1 +1,5 @@
-env_file = '.env'
+[[env]]
+_.file = '.env'
+
+[[env]]
+_.file = '.env.local'
