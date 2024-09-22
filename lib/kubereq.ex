@@ -36,6 +36,9 @@ defmodule Kubereq do
         end
       end
   """
+
+  require Logger
+
   alias Kubereq.Step
 
   @type wait_until_callback :: (map() | :deleted -> boolean | {:error, any})
@@ -43,8 +46,29 @@ defmodule Kubereq do
   @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
   @type namespace :: String.t() | nil
   @type watch_response :: {:ok, Enumerable.t(map())} | {:ok, Task.t()} | {:error, Exception.t()}
-
   @typep do_watch_response :: {:ok, Enumerable.t(map())} | {:error, Exception.t()}
+
+  def attach(req, opts \\ []) do
+    kubeconfig =
+      case opts[:kubeconfig] do
+        %Kubereq.Kubeconfig{} = kubeconfig -> kubeconfig
+        nil -> Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
+        pipeline -> Kubereq.Kubeconfig.load(pipeline)
+      end
+
+    req
+    |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
+    |> Step.FieldSelector.attach()
+    |> Step.LabelSelector.attach()
+    |> Step.Compression.attach()
+    |> Step.TLS.attach()
+    |> Step.Auth.attach()
+    |> Step.Impersonate.attach()
+    |> Step.BaseUrl.attach()
+    |> Step.Plug.attach()
+    |> Req.merge(kubeconfig: kubeconfig)
+  end
+
   @doc """
   Prepares a `Req.Request` struct for making HTTP requests to a Kubernetes
   cluster. The `kubeconfig` is the Kubernetes configuration in the form of a
@@ -60,17 +84,7 @@ defmodule Kubereq do
   @spec new(kubeconfig :: Kubereq.Kubeconfig.t()) ::
           Req.Request.t()
   def new(kubeconfig) do
-    Req.new()
-    |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
-    |> Step.FieldSelector.attach()
-    |> Step.LabelSelector.attach()
-    |> Step.Compression.attach()
-    |> Step.TLS.attach()
-    |> Step.Auth.attach()
-    |> Step.Impersonate.attach()
-    |> Step.BaseUrl.attach()
-    |> Step.Plug.attach()
-    |> Req.merge(kubeconfig: kubeconfig)
+    attach(Req.new(), kubeconfig: kubeconfig)
   end
 
   @doc """
@@ -97,11 +111,58 @@ defmodule Kubereq do
   @spec new(kubeconfig :: Kubereq.Kubeconfig.t(), resource_path :: binary()) ::
           Req.Request.t()
   def new(kubeconfig, resource_path) do
-    new(kubeconfig)
-    |> Req.merge(
+    Req.new()
+    |> attach(kubeconfig: kubeconfig)
+    |> set_resource_path(resource_path)
+  end
+
+  @spec set_resource_path(Req.Request.t(), resource_path :: binary()) :: Req.Request.t()
+  def set_resource_path(req, resource_path) do
+    Req.merge(
+      req,
       resource_path: resource_path,
       resource_list_path: String.replace_suffix(resource_path, "/:name", "")
     )
+  end
+
+  def discover_resource_path(_req, _group_version, _kind, _subresource) do
+    raise "Not implemented yet."
+  end
+
+  defmacro set_resource(req, group_version, kind, subresource \\ nil)
+           when is_binary(group_version) and is_binary(kind) do
+    discovery = elem(Code.eval_file("../build/resource_path_mapping.ex", __DIR__), 0)
+
+    case(discovery["#{group_version}/#{kind}/#{subresource}"]) do
+      nil ->
+        if subresource do
+          Logger.warning("""
+          The subresource "#{subresource}" of resource "#{kind}" in apiVersion "#{group_version}"
+          is not known at compile time. Kubereq is going to query the Cluster at runtime for this
+          resource. But if this is a "standard" Kubernetes resource, there might be a typo.
+          """)
+        else
+          Logger.warning("""
+          The resource "#{kind}" in apiVersion "#{group_version}" is not known at compile time.
+          Kubereq is going to query the Cluster at runtime for this resource. But if this is a
+          "standard" Kubernetes resource, there might be a typo.
+          """)
+        end
+
+        quote do
+          Kubereq.discover_resource_path(
+            unquote(req),
+            unquote(group_version),
+            unquote(kind),
+            unquote(subresource)
+          )
+        end
+
+      resource_path ->
+        quote do
+          Kubereq.set_resource_path(unquote(req), unquote(resource_path))
+        end
+    end
   end
 
   @doc """

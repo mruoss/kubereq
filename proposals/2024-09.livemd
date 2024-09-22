@@ -1,0 +1,96 @@
+# kubereq API improvements
+
+```elixir
+Mix.install([
+  {:kubereq, github: "mruoss/kubereq", ref: "compile-time-resource-path-lookup"},
+  {:kino, "~> 0.14.1"}
+])
+```
+
+## Motivation
+
+Currently, the `kubereq` library is used as follows:
+
+```elixir
+kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
+sa_req = Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/serviceaccounts/:name")
+
+Kubereq.get(sa_req, "default", "default") |> Kino.Tree.new()
+```
+
+I wrote `kubereq` and `kubegen` a few months ago but never got around to really use it. Now that I have used `kubereq` for the K8s runtime in Livebook, I feel like the API needs some minor adaptions.
+
+One part that calls for abstraction is loading the Kubeconfig. Most people probably get by with the default pipeline so while still allowing for explicit override, we can set it as default.
+
+Also, line 2 in the code above is a problem to me. I can never remember this path and always had to look it up or copy it. And I know Kubernetes quite well. For somebody with less deep knowledge of the API behind `kubectl`, it's probably not super straight forward to find out what is required.
+
+## Proposal 1: Attach function with kubeconfig as option
+
+We can offer `Kubereq.attach/2` where the second argument is an options Keyword list. The only option at the moment is `:kubeconfig`. If it is not defined, the default config `Kubereq.Kubeconfig.Default` is loaded. Otherwise, the user can pass their own pipeline or an already loaded `%Kubereq.Kubeconfig{}` struct.
+
+```elixir
+# loads Kubereq.Kubeconfig.Default implicitely:
+req1 = Req.new() |> Kubereq.attach()
+
+# pass Kubeconfnig pipeline which will be loaded by `Kubereq.attach/2`:
+req2 =
+  Req.new()
+  |> Kubereq.attach(
+    kubeconfig: {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true}
+  )
+
+# pass loaded %Kubereq.Kubeconfig{} struct to `Kubereq.attach/2`:
+kubeconfig =
+  Kubereq.Kubeconfig.load(
+    {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true}
+  )
+req3 =
+  Req.new()
+  |> Kubereq.attach(kubeconfig: kubeconfig)
+```
+
+## Proposal 2: Allow setting resources instead of resource path
+
+People know `kubectl` and resource manifest YAML files. They know `api_version` and `kind`. However, the API expects the plural form of the resource in the REST path, not the `kind`. Luckily, Kubernetes provides its resource definitions in form of [JSON discovery files](https://github.com/kubernetes/kubernetes/tree/master/api/discovery) within their repo. I can download them and "generate" a lookup function which at least works for "core" resources. For CRDs we can still allow to set the path directly or fall back to a resource discovery call to the cluster at runtime like the `k8s` library does.
+
+We offer `Kubereq.set_resource/4` which sets the resource path by looking up the required information from the discovery files:
+
+```elixir
+require Kubereq
+
+sa_req =
+  Req.new()
+  |> Kubereq.attach()
+  |> Kubereq.set_resource("v1", "ServiceAccount")
+
+sa_req.options.resource_path
+```
+
+The fourth argument takes a subresource as optional argument:
+
+```elixir
+require Kubereq
+
+sa_req =
+  Req.new()
+  |> Kubereq.attach()
+  |> Kubereq.set_resource("v1", "Pod", "status")
+
+sa_req.options.resource_path
+```
+
+Note that `Kubereq.set_resource/4` in this proposal is a macro because it lets us warn the user about Typos at compile time.
+
+```elixir
+require Kubereq
+
+sa_req =
+  Req.new()
+  |> Kubereq.attach()
+  # note the missing c in Account:
+  |> Kubereq.set_resource("v1", "ServiceAcount")
+
+sa_req.options.resource_path
+```
+
+However, this always requires the `require Kubereq`. I'm not sure it is worth using a macro just for the compile-time check? Alternatively, this could be a normal function that falls back to a resource discovery call to the Kubernetes cluster at runtime.

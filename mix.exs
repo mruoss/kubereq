@@ -88,7 +88,15 @@ defmodule Kubereq.MixProject do
         "Changelog" => "https://hexdocs.pm/#{@app}/changelog.html",
         "Sponsor" => "https://github.com/sponsors/mruoss"
       },
-      files: ["lib", "mix.exs", "README.md", "LICENSE.md", "CHANGELOG.md", ".formatter.exs"]
+      files: [
+        "build",
+        "lib",
+        "mix.exs",
+        "README.md",
+        "LICENSE.md",
+        "CHANGELOG.md",
+        ".formatter.exs"
+      ]
     ]
   end
 
