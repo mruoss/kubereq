@@ -26,13 +26,9 @@ defmodule KubereqIntegrationTest do
         )
     end
 
-    kubeconf =
-      Kubereq.Kubeconfig.load(
-        {Kubereq.Kubeconfig.File, path: "test/support/kubeconfig-integration.yaml"}
-      )
-
-    req_ns = Kubereq.new(kubeconf, @resource_path_ns)
-    req_cm = Kubereq.new(kubeconf, @resource_path_cm)
+    kubeconf = {Kubereq.Kubeconfig.File, path: "test/support/kubeconfig-integration.yaml"}
+    req_ns = Kubereq.new(kubeconfig: kubeconf, resource_path: @resource_path_ns)
+    req_cm = Kubereq.new(kubeconfig: kubeconf, resource_path: @resource_path_cm)
 
     {:ok, _} =
       Kubereq.apply(req_ns, ~y"""
@@ -112,6 +108,21 @@ defmodule KubereqIntegrationTest do
       )
 
     assert :ok == result
+  end
+
+  @tag :wip
+  test "Apply subresource", %{req_ns: req_ns} do
+    ns = ~y"""
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: #{@namespace}
+      status:
+        phase: Active
+    """
+
+    {:ok, resp} = Kubereq.apply(req_ns, ns)
+    assert 200 = resp.status
   end
 
   test "Wait until returns error when deleted", %{req_cm: req, example_config_1: example_config_1} do

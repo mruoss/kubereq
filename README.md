@@ -91,7 +91,7 @@ Kubereq.Kubeconfig.load([
 
 ### Building the `Req.Request` struct
 
-Once you have loaded the, you can pass it to `Kubereq.new/2` to get a
+Once you have loaded the, you can pass it to `Kubereq.new/1` to get a
 `%Req.Request{}` struct which is prepared to make requests to the Kubernetes
 API Server for **a specific resource kind**. It expects the `kubeconf` as first
 argument and the `path` to the resource as second argument. The path should

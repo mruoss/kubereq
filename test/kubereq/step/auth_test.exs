@@ -15,7 +15,7 @@ defmodule Kubereq.Step.AuthTest do
         current_user: %{"client-certificate" => "/path/to/cert", "client-key" => "/path/to/key"}
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
 
     assert "/path/to/cert" == get_in(req.options, ~w"connect_options transport_opts certfile"a)
     assert "/path/to/key" == get_in(req.options, ~w"connect_options transport_opts keyfile"a)
@@ -32,7 +32,7 @@ defmodule Kubereq.Step.AuthTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
 
     assert not is_nil(get_in(req.options, ~w"connect_options transport_opts cert"a))
     assert not is_nil(get_in(req.options, ~w"connect_options transport_opts key"a))
@@ -45,8 +45,7 @@ defmodule Kubereq.Step.AuthTest do
         current_user: %{"token" => "foo-token"}
       )
 
-    kubeconfig
-    |> Kubereq.new("unused")
+    Kubereq.new(kubeconfig: kubeconfig)
     |> MUT.call()
     |> Req.merge(
       plug: fn conn ->
@@ -64,8 +63,7 @@ defmodule Kubereq.Step.AuthTest do
         current_user: %{"tokenFile" => "test/support/token"}
       )
 
-    kubeconfig
-    |> Kubereq.new("unused")
+    Kubereq.new(kubeconfig: kubeconfig)
     |> MUT.call()
     |> Req.merge(
       plug: fn conn ->
@@ -83,8 +81,7 @@ defmodule Kubereq.Step.AuthTest do
         current_user: %{"username" => "foo", "password" => "bar"}
       )
 
-    kubeconfig
-    |> Kubereq.new("unused")
+    Kubereq.new(kubeconfig: kubeconfig)
     |> MUT.call()
     |> Req.merge(
       plug: fn conn ->
@@ -111,8 +108,7 @@ defmodule Kubereq.Step.AuthTest do
       )
 
     req =
-      kubeconfig
-      |> Kubereq.new("unused")
+      Kubereq.new(kubeconfig: kubeconfig)
       |> MUT.call()
       |> Req.merge(
         plug: fn conn ->

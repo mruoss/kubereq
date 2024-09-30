@@ -11,7 +11,7 @@ defmodule Kubereq.Step.TLSTest do
 
   test "sets the verify option" do
     kubeconfig = Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
     assert :verify_peer === get_in(req.options, ~w"connect_options transport_opts verify"a)
 
     kubeconfig =
@@ -19,7 +19,7 @@ defmodule Kubereq.Step.TLSTest do
         current_cluster: %{"server" => "https://example.com", "insecure-skip-tls-verify" => true}
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
     assert :verify_none === get_in(req.options, ~w"connect_options transport_opts verify"a)
   end
 
@@ -32,7 +32,7 @@ defmodule Kubereq.Step.TLSTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
 
     assert ~c"/path/to/ca.crt" ===
              get_in(req.options, ~w"connect_options transport_opts cacertfile"a)
@@ -48,7 +48,7 @@ defmodule Kubereq.Step.TLSTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
 
     cacerts = get_in(req.options, ~w"connect_options transport_opts cacerts"a)
     assert is_list(cacerts)
@@ -64,7 +64,7 @@ defmodule Kubereq.Step.TLSTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Kubereq.new(kubeconfig: kubeconfig) |> MUT.call()
 
     assert ~c"localhost" ===
              get_in(req.options, ~w"connect_options transport_opts server_name_indication"a)

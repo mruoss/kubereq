@@ -57,23 +57,7 @@ end
 
 format_api_resource_list = fn api_resource_list_file ->
   api_resource_list = extract_file.(api_resource_list_file)
-
-  for main_resource <-
-        Enum.reject(api_resource_list["resources"], &String.contains?(&1["name"], "/")) do
-    prefix = "#{main_resource["name"]}/"
-
-    subresources =
-      for %{"name" => <<^prefix::binary, subresource::binary>>} = subresource_definition
-          when subresource not in ["exec", "proxy", "attach", "log", "portforward"] <-
-            api_resource_list["resources"] do
-        subresource_definition
-        |> Map.put("subresource", subresource)
-        |> Map.put("name", main_resource["name"])
-      end
-
-    [main_resource | subresources]
-  end
-  |> List.flatten()
+  Enum.reject(api_resource_list["resources"], &String.contains?(&1["name"], "/"))
 end
 
 api = extract_file.("api.json")
@@ -83,10 +67,10 @@ core_apis =
       api_resource <- format_api_resource_list.("api__#{version}.json"),
       into: %{} do
     if api_resource["namespaced"] do
-      {"#{version}/#{api_resource["kind"]}/#{api_resource["subresource"]}",
-       "api/#{version}/namespaces/:namespace/#{api_resource["name"]}/:name/#{api_resource["subresource"]}"}
+      {"#{version}/#{api_resource["kind"]}",
+       "api/#{version}/namespaces/:namespace/#{api_resource["name"]}/:name"}
     else
-      {"#{version}/#{api_resource["kind"]}/#{api_resource["subresource"]}/#{api_resource["subresource"]}",
+      {"#{version}/#{api_resource["kind"]}",
        "api/#{version}/#{api_resource["name"]}/:name"}
     end
   end
@@ -100,11 +84,11 @@ extended_apis =
         format_api_resource_list.("apis__#{api_group["name"]}__#{version["version"]}.json"),
       into: %{} do
     if api_resource["namespaced"] do
-      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}/#{api_resource["subresource"]}",
-       "apis/#{api_group["name"]}/#{version["version"]}/namespaces/:namespace/#{api_resource["name"]}/:name/#{api_resource["subresource"]}"}
+      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}",
+       "apis/#{api_group["name"]}/#{version["version"]}/namespaces/:namespace/#{api_resource["name"]}/:name"}
     else
-      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}/#{api_resource["subresource"]}",
-       "apis/#{api_group["name"]}/#{version["version"]}/#{api_resource["name"]}/:name/#{api_resource["subresource"]}"}
+      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}",
+       "apis/#{api_group["name"]}/#{version["version"]}/#{api_resource["name"]}/:name"}
     end
   end
 

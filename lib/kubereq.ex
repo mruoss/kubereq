@@ -44,11 +44,46 @@ defmodule Kubereq do
   @type wait_until_callback :: (map() | :deleted -> boolean | {:error, any})
   @type wait_until_response :: :ok | {:error, :watch_timeout}
   @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
-  @type namespace :: String.t() | nil
+  @type namespace() :: String.t() | nil
+  @type subresource() :: String.t() | nil
   @type watch_response :: {:ok, Enumerable.t(map())} | {:ok, Task.t()} | {:error, Exception.t()}
   @typep do_watch_response :: {:ok, Enumerable.t(map())} | {:error, Exception.t()}
 
-  def attach(req, opts \\ []) do
+  @doc """
+  Prepares a `Req.Request` struct for making HTTP requests to a Kubernetes
+  cluster.
+
+  ### Options
+
+  * `:kubeconfig` - Kubernetes configuration in the form of a
+  `%Kubereq.Kubeconfig{}` struct. It should contain all informations required to
+  connect to the Kubernetes cluster.
+  * `:resource_path` - The path on to the targeted resource endpoint. It should
+  contain placeholders for `:namespace` and `:name`.
+
+  ### Examples
+
+      iex> Kubereq.new()
+      %Request.Req{...}
+
+  Passing a kubeconfig loader pipeline
+
+      iex> Kubereq.new(kubeconfig: Kubereq.Kubeconfig.Default)
+      %Request.Req{...}
+
+  Passing a pre-loaded Kubeconfig
+
+      iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
+      ...> Kubereq.new(kubeconfig: kubeconfig)
+      %Request.Req{...}
+
+  Passing `:kubeconfig` and `:resource_path`
+
+      iex> Kubereq.new(kubeconfig: Kubereq.Kubeconfig.Default, resource_path: "api/v1/namespaces/:namespace/configmaps/:name")
+      %Request.Req{...}
+  """
+  @spec new(opts :: Keyword.t()) :: Req.Request.t()
+  def new(opts \\ []) do
     kubeconfig =
       case opts[:kubeconfig] do
         %Kubereq.Kubeconfig{} = kubeconfig -> kubeconfig
@@ -56,68 +91,63 @@ defmodule Kubereq do
         pipeline -> Kubereq.Kubeconfig.load(pipeline)
       end
 
-    req
-    |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
-    |> Step.FieldSelector.attach()
-    |> Step.LabelSelector.attach()
-    |> Step.Compression.attach()
-    |> Step.TLS.attach()
-    |> Step.Auth.attach()
-    |> Step.Impersonate.attach()
-    |> Step.BaseUrl.attach()
-    |> Step.Plug.attach()
-    |> Req.merge(kubeconfig: kubeconfig)
+    req =
+      Req.new()
+      |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
+      |> Step.FieldSelector.attach()
+      |> Step.LabelSelector.attach()
+      |> Step.Compression.attach()
+      |> Step.TLS.attach()
+      |> Step.Auth.attach()
+      |> Step.Impersonate.attach()
+      |> Step.BaseUrl.attach()
+      |> Step.Plug.attach()
+      |> Req.merge(kubeconfig: kubeconfig)
+
+    case opts[:resource_path] do
+      resource_path when is_binary(resource_path) -> for_resource_path(req, resource_path)
+      _ -> req
+    end
   end
 
   @doc """
-  Prepares a `Req.Request` struct for making HTTP requests to a Kubernetes
-  cluster. The `kubeconfig` is the Kubernetes configuration in the form of a
-  `%Kubereq.Kubeconfig{}` struct and should contain all informations required to connect
-  to the Kubernetes cluster.
+  Tries to lookup the resource for the given `group_version`, `kind` and optionally `subresource`.
+  If the resource is found, sets the path to the found resource on the given `req`.
 
   ### Examples
 
-      iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
-      ...> Kubereq.new(kubeconfig)
+      iex> Kubereq.new()
+      ...> |> Kubereq.for_resource("v1", "Pod")
+      %Request.Req{...}
+
+  For the `status` subresource of a Pod
+
+      iex> Kubereq.new()
+      ...> |> Kubereq.for_resource("v1", "Pod", "status")
       %Request.Req{...}
   """
-  @spec new(kubeconfig :: Kubereq.Kubeconfig.t()) ::
-          Req.Request.t()
-  def new(kubeconfig) do
-    attach(Req.new(), kubeconfig: kubeconfig)
+  def for_resource(req, group_version, kind) do
+    case Kubereq.Discovery.resource_path_for(req, group_version, kind) do
+      {:ok, resource_path} ->
+        Kubereq.for_resource_path(req, resource_path)
+
+      :error ->
+        req
+    end
   end
 
   @doc """
-  Prepares a `Req.Request` struct for a specific resource on a specific
-  Kubernetes cluster. The `kubeconfig` is the Kubernetes configuration in the
-  form of a `%Kubereq.Kubeconfig{}` struct and should contain all informations required to
-  connect to the Kubernetes cluster.
-
-  The parameter `resource_path` should be the path on which the Kubernetes API
-  Server listens for requests for the targeted resource kind. It should
-  contain placeholders for `:namespace` and `:name`.
-
-  The `:namespace` and `:name` are provided through the `:path_params` option
-  built into `Req` when making the request.
+  Sets the `resource_path`, ie. the path to the targeted resource on the
+  Kubernetes API Server on the given `req`.
 
   ### Examples
 
-  Prepare a `Req.Request` for ConfigMaps:
-
-      iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
-      ...> Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
+      iex> Kubereq.new()
+      ...> |> Kubereq.for_resource_path("api/v1/namespaces/:namespace/configmaps/:name")
       %Request.Req{...}
   """
-  @spec new(kubeconfig :: Kubereq.Kubeconfig.t(), resource_path :: binary()) ::
-          Req.Request.t()
-  def new(kubeconfig, resource_path) do
-    Req.new()
-    |> attach(kubeconfig: kubeconfig)
-    |> set_resource_path(resource_path)
-  end
-
-  @spec set_resource_path(Req.Request.t(), resource_path :: binary()) :: Req.Request.t()
-  def set_resource_path(req, resource_path) do
+  @spec for_resource_path(Req.Request.t(), resource_path :: binary()) :: Req.Request.t()
+  def for_resource_path(req, resource_path) do
     Req.merge(
       req,
       resource_path: resource_path,
@@ -125,82 +155,71 @@ defmodule Kubereq do
     )
   end
 
+  @doc false
   def discover_resource_path(_req, _group_version, _kind, _subresource) do
     raise "Not implemented yet."
   end
 
-  defmacro set_resource(req, group_version, kind, subresource \\ nil)
-           when is_binary(group_version) and is_binary(kind) do
-    discovery = elem(Code.eval_file("../build/resource_path_mapping.ex", __DIR__), 0)
-
-    case(discovery["#{group_version}/#{kind}/#{subresource}"]) do
-      nil ->
-        if subresource do
-          Logger.warning("""
-          The subresource "#{subresource}" of resource "#{kind}" in apiVersion "#{group_version}"
-          is not known at compile time. Kubereq is going to query the Cluster at runtime for this
-          resource. But if this is a "standard" Kubernetes resource, there might be a typo.
-          """)
-        else
-          Logger.warning("""
-          The resource "#{kind}" in apiVersion "#{group_version}" is not known at compile time.
-          Kubereq is going to query the Cluster at runtime for this resource. But if this is a
-          "standard" Kubernetes resource, there might be a typo.
-          """)
-        end
-
-        quote do
-          Kubereq.discover_resource_path(
-            unquote(req),
-            unquote(group_version),
-            unquote(kind),
-            unquote(subresource)
-          )
-        end
-
-      resource_path ->
-        quote do
-          Kubereq.set_resource_path(unquote(req), unquote(resource_path))
-        end
-    end
-  end
-
   @doc """
-  Create the `resource` object.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  Create the `resource` or its `subresource` on the cluster.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Example
 
       iex> Kubereq.create(req, resource)
       {:ok, %Req.Response{status: 201, body: %{...}}}
   """
-  @spec create(Req.Request.t(), resource :: map()) :: response()
-  def create(req, resource) do
-    Req.post(req,
-      url: req.options.resource_list_path,
-      json: resource,
-      path_params: [namespace: get_in(resource, ~w(metadata namespace))]
-    )
+  @spec create(Req.Request.t(), resource :: map(), subresource :: subresource()) :: response()
+  def create(req, resource, subresource \\ nil) do
+    options =
+      case subresource do
+        nil ->
+          [
+            url: req.options.resource_list_path,
+            json: resource,
+            path_params: [namespace: resource["metadata"]["namespace"]]
+          ]
+
+        subresource ->
+          [
+            url: "#{req.options.resource_path}/#{subresource}",
+            json: resource,
+            path_params: [
+              namespace: resource["metadata"]["namespace"],
+              name: resource["metadata"]["name"]
+            ]
+          ]
+      end
+
+    Req.post(req, options)
   end
 
   @doc """
-  Get the resource `name` in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  Get the resource `name` in `namespace` or its `subresource`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Example
 
       iex> Kubereq.get(req, "default", "foo")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
-  @spec get(Req.Request.t(), namespace :: namespace(), name :: String.t()) ::
+  @spec get(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          subresource :: subresource()
+        ) ::
           response()
-  def get(req, namespace, name) do
-    Req.get(req, url: req.options.resource_path, path_params: [namespace: namespace, name: name])
+  def get(req, namespace, name, subresource \\ nil) do
+    Req.get(req,
+      url: "#{req.options.resource_path}/#{subresource}",
+      path_params: [namespace: namespace, name: name]
+    )
   end
 
   @doc """
   Get a resource list.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
@@ -214,7 +233,7 @@ defmodule Kubereq do
   """
   @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) ::
           response()
-  def list(req, namespace, opts \\ []) do
+  def list(req, namespace \\ nil, opts \\ []) do
     Req.get(req,
       url: req.options.resource_list_path,
       field_selectors: opts[:field_selectors],
@@ -224,26 +243,31 @@ defmodule Kubereq do
   end
 
   @doc """
-  Deletes a resource.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  Deletes the `resource` or its `subresource` from the cluster.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
       iex> Kubereq.delete(req, "default", "foo")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
-  @spec delete(Req.Request.t(), namespace :: namespace(), name :: String.t()) ::
+  @spec delete(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          subresource :: subresource()
+        ) ::
           response()
-  def delete(req, namespace, name) do
+  def delete(req, namespace \\ nil, name, subresource \\ nil) do
     Req.delete(req,
-      url: req.options.resource_path,
+      url: "#{req.options.resource_path}/#{subresource}",
       path_params: [namespace: namespace, name: name]
     )
   end
 
   @doc """
   Deletes all resources in the given namespace.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
@@ -256,7 +280,7 @@ defmodule Kubereq do
   * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
   """
   @spec delete_all(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
-  def delete_all(req, namespace, opts \\ []) do
+  def delete_all(req, namespace \\ nil, opts \\ []) do
     Req.delete(req,
       url: req.options.resource_list_path,
       field_selectors: opts[:field_selectors],
@@ -267,17 +291,17 @@ defmodule Kubereq do
 
   @doc """
   Updates the given `resource`.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
       iex> Kubereq.update(req, %{...})
       {:ok, %Req.Response{...}
   """
-  @spec update(Req.Request.t(), resource :: map()) :: response()
-  def update(req, resource) do
+  @spec update(Req.Request.t(), resource :: map(), subresource :: subresource()) :: response()
+  def update(req, resource, subresource \\ nil) do
     Req.put(req,
-      url: req.options.resource_path,
+      url: "#{req.options.resource_path}/#{subresource}",
       json: resource,
       path_params: [
         namespace: get_in(resource, ~w(metadata namespace)),
@@ -288,7 +312,7 @@ defmodule Kubereq do
 
   @doc """
   Applies the given `resource` using a Server-Side-Apply Patch.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   See the [documentation](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
   for a documentation on `field_manager` and `force` arguments.
@@ -298,11 +322,17 @@ defmodule Kubereq do
       iex> Kubereq.apply(req, %{...})
       {:ok, %Req.Response{...}
   """
-  @spec apply(Req.Request.t(), resource :: map(), field_manager :: binary(), force :: boolean()) ::
+  @spec apply(
+          Req.Request.t(),
+          resource :: map(),
+          subresource :: subresource(),
+          field_manager :: binary(),
+          force :: boolean()
+        ) ::
           response()
-  def apply(req, resource, field_manager \\ "Elixir", force \\ true) do
+  def apply(req, resource, subresource \\ nil, field_manager \\ "Elixir", force \\ true) do
     Req.patch(req,
-      url: req.options.resource_path,
+      url: "#{req.options.resource_path}/#{subresource}",
       path_params: [
         namespace: get_in(resource, ~w(metadata namespace)),
         name: get_in(resource, ~w(metadata name))
@@ -314,8 +344,8 @@ defmodule Kubereq do
   end
 
   @doc """
-  Patches the resource `name`in `namespace` using the given `json_patch`.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  Patches the resource `name`in `namespace` or its `subresource` using the given
+  `json_patch`. The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
@@ -326,11 +356,12 @@ defmodule Kubereq do
           Req.Request.t(),
           json_patch :: map(),
           namespace :: namespace(),
-          name :: String.t()
+          name :: String.t(),
+          subresource :: subresource()
         ) :: response()
-  def json_patch(req, json_patch, namespace, name) do
+  def json_patch(req, json_patch, namespace \\ nil, name, subresource \\ nil) do
     Req.patch(req,
-      url: req.options.resource_path,
+      url: "#{req.options.resource_path}/#{subresource}",
       path_params: [namespace: namespace, name: name],
       headers: [{"Content-Type", "application/json-patch+json"}],
       json: json_patch
@@ -338,8 +369,9 @@ defmodule Kubereq do
   end
 
   @doc """
-  Patches the resource `name`in `namespace` using the given `merge_patch`.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  Patches the resource `name`in `namespace` or its `subresource` using the given
+  `merge_patch`. The `req` struct should have been created using
+  `Kubereq.new/1`.
 
   ### Examples
 
@@ -350,11 +382,12 @@ defmodule Kubereq do
           Req.Request.t(),
           merge_patch :: String.t(),
           namespace :: namespace(),
-          name :: String.t()
+          name :: String.t(),
+          subresource :: subresource()
         ) :: response()
-  def merge_patch(req, merge_patch, namespace, name) do
+  def merge_patch(req, merge_patch, namespace \\ nil, name, subresource \\ nil) do
     Req.patch(req,
-      url: req.options.resource_path,
+      url: "#{req.options.resource_path}/#{subresource}",
       path_params: [namespace: namespace, name: name],
       headers: [{"Content-Type", "application/merge-patch+json"}],
       json: merge_patch
@@ -364,7 +397,7 @@ defmodule Kubereq do
   @doc """
   GET a resource and wait until the given `callback` returns true or the given
   `timeout` (ms) has expired.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Options
 
@@ -377,7 +410,7 @@ defmodule Kubereq do
           callback :: wait_until_callback(),
           timeout :: non_neg_integer()
         ) :: wait_until_response()
-  def wait_until(req, namespace, name, callback, timeout \\ 10_000) do
+  def wait_until(req, namespace \\ nil, name, callback, timeout \\ 10_000) do
     ref = make_ref()
     opts = [field_selectors: [{"metadata.name", name}], stream_to: {self(), ref}]
 
@@ -422,7 +455,7 @@ defmodule Kubereq do
 
   @doc """
   Watch events of all resources in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
@@ -447,7 +480,7 @@ defmodule Kubereq do
           opts :: keyword()
         ) ::
           watch_response()
-  def watch(req, namespace, opts \\ []) do
+  def watch(req, namespace \\ nil, opts \\ []) do
     resource_version = opts[:resource_version]
     do_watch = fn -> do_watch(req, namespace, resource_version, opts) end
 
@@ -467,7 +500,7 @@ defmodule Kubereq do
 
   @doc """
   Watch events of a single resources `name`in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/2`.
+  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
@@ -496,7 +529,7 @@ defmodule Kubereq do
           name :: String.t(),
           opts :: keyword()
         ) :: watch_response()
-  def watch_single(req, namespace, name, opts \\ []) do
+  def watch_single(req, namespace \\ nil, name, opts \\ []) do
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
     watch(req, namespace, opts)
   end

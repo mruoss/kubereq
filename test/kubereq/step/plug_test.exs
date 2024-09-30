@@ -24,8 +24,7 @@ defmodule Kubereq.Step.PlugTest do
       )
 
     {:ok, resp} =
-      kubeconfig
-      |> Kubereq.new("unused")
+      Kubereq.new(kubeconfig: kubeconfig)
       |> MUT.call()
       |> Req.request()
 
@@ -49,24 +48,18 @@ defmodule Kubereq.Step.PlugTest do
     }
 
     kubeconfig =
-      Kubeconfig.Stub.call(
-        %Kubeconfig{},
-        Kubeconfig.Stub.init(plugs: plugs)
-      )
+      Kubeconfig.Stub.call(%Kubeconfig{}, Kubeconfig.Stub.init(plugs: plugs))
+      |> Kubeconfig.set_current_context("foo")
 
     {:ok, resp} =
-      kubeconfig
-      |> Kubeconfig.set_current_context("foo")
-      |> Kubereq.new("unused")
+      Kubereq.new(kubeconfig: kubeconfig)
       |> MUT.call()
       |> Req.request()
 
     assert resp.body == "Foo called"
 
     {:ok, resp} =
-      kubeconfig
-      |> Kubeconfig.set_current_context("bar")
-      |> Kubereq.new("unused")
+      Kubereq.new(kubeconfig: Kubeconfig.set_current_context(kubeconfig, "bar"))
       |> MUT.call()
       |> Req.request()
 

@@ -25,8 +25,7 @@ defmodule Kubereq.Step.ImpersonateTest do
         }
       )
 
-    kubeconfig
-    |> Kubereq.new("unused")
+    Kubereq.new(kubeconfig: kubeconfig)
     |> MUT.call()
     |> Req.merge(
       plug: fn conn ->
