@@ -5,8 +5,6 @@ defmodule KubereqIntegrationTest do
 
   @cluster_name "kubereq"
   @kubeconfig_path "test/support/kubeconfig-integration.yaml"
-  @resource_path_ns "api/v1/namespaces/:name"
-  @resource_path_cm "api/v1/namespaces/:namespace/configmaps/:name"
   @namespace "integrationtest"
 
   setup_all do
@@ -27,8 +25,8 @@ defmodule KubereqIntegrationTest do
     end
 
     kubeconf = {Kubereq.Kubeconfig.File, path: "test/support/kubeconfig-integration.yaml"}
-    req_ns = Kubereq.new(kubeconfig: kubeconf, resource_path: @resource_path_ns)
-    req_cm = Kubereq.new(kubeconfig: kubeconf, resource_path: @resource_path_cm)
+    req_ns = Kubereq.new(kubeconfig: kubeconf, api_version: "v1", kind: "Namespace")
+    req_cm = Kubereq.new(kubeconfig: kubeconf, api_version: "v1", kind: "ConfigMap")
 
     {:ok, _} =
       Kubereq.apply(req_ns, ~y"""
@@ -121,10 +119,11 @@ defmodule KubereqIntegrationTest do
         phase: Active
     """
 
-    {:ok, resp} = Kubereq.apply(req_ns, ns)
+    {:ok, resp} = Kubereq.apply(req_ns, ns, subresource: "status")
     assert 200 = resp.status
   end
 
+  @tag :wip
   test "Wait until returns error when deleted", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert 201 == resp.status

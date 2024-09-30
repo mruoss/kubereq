@@ -32,7 +32,7 @@ defmodule Kubereq do
         end
 
         def list(namespace, opts \\ []) do
-          Kubereq.list(req(), namespace, opts)
+          Kubereq.list(req(), namespace, opts \\ [])
         end
       end
   """
@@ -84,80 +84,25 @@ defmodule Kubereq do
   """
   @spec new(opts :: Keyword.t()) :: Req.Request.t()
   def new(opts \\ []) do
-    kubeconfig =
-      case opts[:kubeconfig] do
+    options =
+      opts
+      |> Keyword.put_new(:kubeconfig, Kubereq.Kubeconfig.Default)
+      |> Keyword.update!(:kubeconfig, fn
         %Kubereq.Kubeconfig{} = kubeconfig -> kubeconfig
-        nil -> Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
         pipeline -> Kubereq.Kubeconfig.load(pipeline)
-      end
+      end)
 
-    req =
-      Req.new()
-      |> Req.Request.register_options([:kubeconfig, :resource_path, :resource_list_path])
-      |> Step.FieldSelector.attach()
-      |> Step.LabelSelector.attach()
-      |> Step.Compression.attach()
-      |> Step.TLS.attach()
-      |> Step.Auth.attach()
-      |> Step.Impersonate.attach()
-      |> Step.BaseUrl.attach()
-      |> Step.Plug.attach()
-      |> Req.merge(kubeconfig: kubeconfig)
-
-    case opts[:resource_path] do
-      resource_path when is_binary(resource_path) -> for_resource_path(req, resource_path)
-      _ -> req
-    end
-  end
-
-  @doc """
-  Tries to lookup the resource for the given `group_version`, `kind` and optionally `subresource`.
-  If the resource is found, sets the path to the found resource on the given `req`.
-
-  ### Examples
-
-      iex> Kubereq.new()
-      ...> |> Kubereq.for_resource("v1", "Pod")
-      %Request.Req{...}
-
-  For the `status` subresource of a Pod
-
-      iex> Kubereq.new()
-      ...> |> Kubereq.for_resource("v1", "Pod", "status")
-      %Request.Req{...}
-  """
-  def for_resource(req, group_version, kind) do
-    case Kubereq.Discovery.resource_path_for(req, group_version, kind) do
-      {:ok, resource_path} ->
-        Kubereq.for_resource_path(req, resource_path)
-
-      :error ->
-        req
-    end
-  end
-
-  @doc """
-  Sets the `resource_path`, ie. the path to the targeted resource on the
-  Kubernetes API Server on the given `req`.
-
-  ### Examples
-
-      iex> Kubereq.new()
-      ...> |> Kubereq.for_resource_path("api/v1/namespaces/:namespace/configmaps/:name")
-      %Request.Req{...}
-  """
-  @spec for_resource_path(Req.Request.t(), resource_path :: binary()) :: Req.Request.t()
-  def for_resource_path(req, resource_path) do
-    Req.merge(
-      req,
-      resource_path: resource_path,
-      resource_list_path: String.replace_suffix(resource_path, "/:name", "")
-    )
-  end
-
-  @doc false
-  def discover_resource_path(_req, _group_version, _kind, _subresource) do
-    raise "Not implemented yet."
+    Req.new()
+    |> Req.Request.register_options([:kubeconfig])
+    |> Step.FieldSelector.attach()
+    |> Step.LabelSelector.attach()
+    |> Step.Compression.attach()
+    |> Step.TLS.attach()
+    |> Step.Auth.attach()
+    |> Step.Impersonate.attach()
+    |> Step.Operation.attach()
+    |> Step.Plug.attach()
+    |> Req.merge(options)
   end
 
   @doc """
@@ -169,34 +114,26 @@ defmodule Kubereq do
       iex> Kubereq.create(req, resource)
       {:ok, %Req.Response{status: 201, body: %{...}}}
   """
-  @spec create(Req.Request.t(), resource :: map(), subresource :: subresource()) :: response()
-  def create(req, resource, subresource \\ nil) do
+  @spec create(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
+  def create(req, resource, opts \\ []) do
     options =
-      case subresource do
-        nil ->
-          [
-            url: req.options.resource_list_path,
-            json: resource,
-            path_params: [namespace: resource["metadata"]["namespace"]]
-          ]
+      Keyword.merge(opts,
+        operation: :create,
+        json: resource,
+        path_params: [
+          namespace: resource["metadata"]["namespace"],
+          name: resource["metadata"]["name"]
+        ]
+      )
 
-        subresource ->
-          [
-            url: "#{req.options.resource_path}/#{subresource}",
-            json: resource,
-            path_params: [
-              namespace: resource["metadata"]["namespace"],
-              name: resource["metadata"]["name"]
-            ]
-          ]
-      end
-
-    Req.post(req, options)
+    Req.request(req, options)
   end
 
   @doc """
   Get the resource `name` in `namespace` or its `subresource`.
   The `req` struct should have been created using `Kubereq.new/1`.
+
+  Omit `namespace` to get cluster resources.
 
   ### Example
 
@@ -205,17 +142,19 @@ defmodule Kubereq do
   """
   @spec get(
           Req.Request.t(),
-          namespace :: namespace(),
-          name :: String.t(),
-          subresource :: subresource()
+          opts :: Keyword.t()
         ) ::
           response()
-  def get(req, namespace, name, subresource \\ nil) do
-    Req.get(req,
-      url: "#{req.options.resource_path}/#{subresource}",
-      path_params: [namespace: namespace, name: name]
-    )
+  def get(req, namespace, name, opts) do
+    options =
+      Keyword.merge(opts, operation: :get, path_params: [namespace: namespace, name: name])
+
+    Req.request(req, options)
   end
+
+  def get(req, name), do: get(req, nil, name, [])
+  def get(req, namespace, name) when is_binary(name), do: get(req, namespace, name, [])
+  def get(req, name, opts) when is_list(opts), do: get(req, nil, name, [])
 
   @doc """
   Get a resource list.
@@ -223,7 +162,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Kubereq.list(req, "api/v1/namespaces/:namespace/configmaps", "default", [])
+      iex> Kubereq.list(req, "default", [])
       {:ok, %Req.Response{status: 200, body: %{...}}}
 
   ### Options
@@ -233,14 +172,18 @@ defmodule Kubereq do
   """
   @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) ::
           response()
-  def list(req, namespace \\ nil, opts \\ []) do
+  def list(req, namespace, opts) do
     Req.get(req,
-      url: req.options.resource_list_path,
+      operation: :list,
       field_selectors: opts[:field_selectors],
       label_selectors: opts[:label_selectors],
       path_params: [namespace: namespace]
     )
   end
+
+  def list(req), do: list(req, nil, [])
+  def list(req, namespace) when is_binary(namespace), do: list(req, namespace, [])
+  def list(req, opts) when is_list(opts), do: list(req, nil, opts)
 
   @doc """
   Deletes the `resource` or its `subresource` from the cluster.
@@ -255,15 +198,19 @@ defmodule Kubereq do
           Req.Request.t(),
           namespace :: namespace(),
           name :: String.t(),
-          subresource :: subresource()
+          opts :: Keyword.t()
         ) ::
           response()
-  def delete(req, namespace \\ nil, name, subresource \\ nil) do
-    Req.delete(req,
-      url: "#{req.options.resource_path}/#{subresource}",
-      path_params: [namespace: namespace, name: name]
-    )
+  def delete(req, namespace, name, opts) do
+    options =
+      Keyword.merge(opts, operation: :delete, path_params: [namespace: namespace, name: name])
+
+    Req.request(req, options)
   end
+
+  def delete(req, name), do: delete(req, nil, name, [])
+  def delete(req, namespace, name) when is_binary(name), do: delete(req, namespace, name, [])
+  def delete(req, name, opts) when is_list(opts), do: delete(req, nil, name, opts)
 
   @doc """
   Deletes all resources in the given namespace.
@@ -280,14 +227,14 @@ defmodule Kubereq do
   * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
   """
   @spec delete_all(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
-  def delete_all(req, namespace \\ nil, opts \\ []) do
-    Req.delete(req,
-      url: req.options.resource_list_path,
-      field_selectors: opts[:field_selectors],
-      label_selectors: opts[:label_selectors],
-      path_params: [namespace: namespace]
-    )
+  def delete_all(req, namespace, opts) do
+    options = Keyword.merge(opts, operation: :delete_all, path_params: [namespace: namespace])
+    Req.request(req, options)
   end
+
+  def delete_all(req), do: delete_all(req, nil, [])
+  def delete_all(req, namespace) when is_binary(namespace), do: delete_all(req, namespace, [])
+  def delete_all(req, opts) when is_list(opts), do: delete_all(req, nil, opts)
 
   @doc """
   Updates the given `resource`.
@@ -298,16 +245,19 @@ defmodule Kubereq do
       iex> Kubereq.update(req, %{...})
       {:ok, %Req.Response{...}
   """
-  @spec update(Req.Request.t(), resource :: map(), subresource :: subresource()) :: response()
-  def update(req, resource, subresource \\ nil) do
-    Req.put(req,
-      url: "#{req.options.resource_path}/#{subresource}",
-      json: resource,
-      path_params: [
-        namespace: get_in(resource, ~w(metadata namespace)),
-        name: get_in(resource, ~w(metadata name))
-      ]
-    )
+  @spec update(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
+  def update(req, resource, opts \\ []) do
+    options =
+      Keyword.merge(opts,
+        operation: :update,
+        json: resource,
+        path_params: [
+          namespace: get_in(resource, ~w(metadata namespace)),
+          name: get_in(resource, ~w(metadata name))
+        ]
+      )
+
+    Req.request(req, options)
   end
 
   @doc """
@@ -325,22 +275,29 @@ defmodule Kubereq do
   @spec apply(
           Req.Request.t(),
           resource :: map(),
-          subresource :: subresource(),
           field_manager :: binary(),
-          force :: boolean()
-        ) ::
-          response()
-  def apply(req, resource, subresource \\ nil, field_manager \\ "Elixir", force \\ true) do
-    Req.patch(req,
-      url: "#{req.options.resource_path}/#{subresource}",
-      path_params: [
-        namespace: get_in(resource, ~w(metadata namespace)),
-        name: get_in(resource, ~w(metadata name))
-      ],
-      headers: [{"Content-Type", "application/apply-patch+yaml"}],
-      params: [fieldManager: field_manager, force: force],
-      json: resource
-    )
+          force :: boolean(),
+          opts :: Keyword.t()
+        ) :: response()
+  def apply(req, resource, field_manager, force, opts) do
+    options =
+      Keyword.merge(opts,
+        operation: :apply,
+        path_params: [
+          namespace: get_in(resource, ~w(metadata namespace)),
+          name: get_in(resource, ~w(metadata name))
+        ],
+        params: [fieldManager: field_manager, force: force],
+        json: resource
+      )
+
+    Req.request(req, options)
+  end
+
+  def apply(req, resource, opts \\ []), do: apply(req, resource, "Elixir", true, opts)
+
+  def apply(req, resource, field_manager, force) do
+    apply(req, resource, field_manager, force, [])
   end
 
   @doc """
@@ -357,15 +314,27 @@ defmodule Kubereq do
           json_patch :: map(),
           namespace :: namespace(),
           name :: String.t(),
-          subresource :: subresource()
+          opts :: Keyword.t()
         ) :: response()
-  def json_patch(req, json_patch, namespace \\ nil, name, subresource \\ nil) do
-    Req.patch(req,
-      url: "#{req.options.resource_path}/#{subresource}",
-      path_params: [namespace: namespace, name: name],
-      headers: [{"Content-Type", "application/json-patch+json"}],
-      json: json_patch
-    )
+  def json_patch(req, json_patch, namespace, name, opts) do
+    options =
+      Keyword.merge(opts,
+        operation: :json_patch,
+        path_params: [namespace: namespace, name: name],
+        json: json_patch
+      )
+
+    Req.request(req, options)
+  end
+
+  def json_patch(req, json_patch, name), do: json_patch(req, json_patch, nil, name, [])
+
+  def json_patch(req, json_patch, namespace, name) when is_binary(name) do
+    json_patch(req, json_patch, namespace, name, [])
+  end
+
+  def json_patch(req, json_patch, name, opts) when is_list(opts) do
+    json_patch(req, json_patch, nil, name, opts)
   end
 
   @doc """
@@ -383,15 +352,27 @@ defmodule Kubereq do
           merge_patch :: String.t(),
           namespace :: namespace(),
           name :: String.t(),
-          subresource :: subresource()
+          opts :: Keyword.t()
         ) :: response()
-  def merge_patch(req, merge_patch, namespace \\ nil, name, subresource \\ nil) do
-    Req.patch(req,
-      url: "#{req.options.resource_path}/#{subresource}",
-      path_params: [namespace: namespace, name: name],
-      headers: [{"Content-Type", "application/merge-patch+json"}],
-      json: merge_patch
-    )
+  def merge_patch(req, merge_patch, namespace, name, opts) do
+    options =
+      Keyword.merge(opts,
+        operation: :merge_patch,
+        path_params: [namespace: namespace, name: name],
+        json: merge_patch
+      )
+
+    Req.request(req, options)
+  end
+
+  def merge_patch(req, merge_patch, name), do: merge_patch(req, merge_patch, nil, name, [])
+
+  def merge_patch(req, merge_patch, namespace, name) when is_binary(name) do
+    merge_patch(req, merge_patch, namespace, name, [])
+  end
+
+  def merge_patch(req, merge_patch, name, opts) when is_list(opts) do
+    merge_patch(req, merge_patch, nil, name, opts)
   end
 
   @doc """
@@ -410,7 +391,7 @@ defmodule Kubereq do
           callback :: wait_until_callback(),
           timeout :: non_neg_integer()
         ) :: wait_until_response()
-  def wait_until(req, namespace \\ nil, name, callback, timeout \\ 10_000) do
+  def wait_until(req, namespace, name, callback, timeout) do
     ref = make_ref()
     opts = [field_selectors: [{"metadata.name", name}], stream_to: {self(), ref}]
 
@@ -433,6 +414,16 @@ defmodule Kubereq do
       {:init, {:error, error}} -> {:error, error}
       {:error, error} -> {:error, error}
     end
+  end
+
+  def wait_until(req, name, callback), do: wait_until(req, name, nil, callback, 10_000)
+
+  def wait_until(req, name, namespace, callback) when is_function(callback) do
+    wait_until(req, name, namespace, callback, 10_000)
+  end
+
+  def wait_until(req, name, callback, timeout) do
+    wait_until(req, name, nil, callback, timeout)
   end
 
   defp wait_event_loop(ref, callback) do
@@ -480,7 +471,7 @@ defmodule Kubereq do
           opts :: keyword()
         ) ::
           watch_response()
-  def watch(req, namespace \\ nil, opts \\ []) do
+  def watch(req, namespace, opts) do
     resource_version = opts[:resource_version]
     do_watch = fn -> do_watch(req, namespace, resource_version, opts) end
 
@@ -497,6 +488,10 @@ defmodule Kubereq do
         {:ok, task}
     end
   end
+
+  def watch(req), do: watch(req, nil, [])
+  def watch(req, namespace) when is_binary(namespace), do: watch(req, namespace, [])
+  def watch(req, opts) when is_list(opts), do: watch(req, nil, opts)
 
   @doc """
   Watch events of a single resources `name`in `namespace`.
@@ -529,10 +524,18 @@ defmodule Kubereq do
           name :: String.t(),
           opts :: keyword()
         ) :: watch_response()
-  def watch_single(req, namespace \\ nil, name, opts \\ []) do
+  def watch_single(req, namespace, name, opts) do
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
     watch(req, namespace, opts)
   end
+
+  def watch_single(req, name), do: watch_single(req, nil, name, [])
+
+  def watch_single(req, namespace, name) when is_binary(namespace) do
+    watch_single(req, namespace, name, [])
+  end
+
+  def watch_single(req, name, opts) when is_list(opts), do: watch_single(req, nil, name, opts)
 
   @spec watch_create_task(
           (-> do_watch_response()),

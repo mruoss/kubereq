@@ -26,7 +26,12 @@ defmodule Kubereq.Step.PlugTest do
     {:ok, resp} =
       Kubereq.new(kubeconfig: kubeconfig)
       |> MUT.call()
-      |> Req.request()
+      |> Req.request(
+        api_version: "v1",
+        kind: "ConfigMap",
+        operation: :get,
+        path_params: [name: "foo"]
+      )
 
     assert resp.body == "Plug called"
   end
@@ -54,14 +59,24 @@ defmodule Kubereq.Step.PlugTest do
     {:ok, resp} =
       Kubereq.new(kubeconfig: kubeconfig)
       |> MUT.call()
-      |> Req.request()
+      |> Req.request(
+        api_version: "v1",
+        kind: "ConfigMap",
+        operation: :get,
+        path_params: [name: "foo"]
+      )
 
     assert resp.body == "Foo called"
 
     {:ok, resp} =
       Kubereq.new(kubeconfig: Kubeconfig.set_current_context(kubeconfig, "bar"))
       |> MUT.call()
-      |> Req.request()
+      |> Req.request(
+        api_version: "v1",
+        kind: "ConfigMap",
+        operation: :get,
+        path_params: [name: "foo"]
+      )
 
     assert resp.body == "Bar called"
   end
