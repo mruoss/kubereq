@@ -2,7 +2,8 @@
 
 ```elixir
 Mix.install([
-  {:kubereq, github: "mruoss/kubereq", ref: "compile-time-resource-path-lookup"},
+  # {:kubereq, github: "mruoss/kubereq", ref: "compile-time-resource-path-lookup"},
+  {:kubereq, path: "/Users/mruoss/src/community/kubereq"},
   {:kino, "~> 0.14.1"}
 ])
 ```
@@ -47,6 +48,7 @@ kubeconfig =
 req3 =
   Req.new()
   |> Kubereq.attach(kubeconfig: kubeconfig)
+
 ```
 
 ## Proposal 2: Allow setting resources instead of resource path
@@ -56,41 +58,38 @@ People know `kubectl` and resource manifest YAML files. They know `api_version` 
 We offer `Kubereq.set_resource/4` which sets the resource path by looking up the required information from the discovery files:
 
 ```elixir
-require Kubereq
-
 sa_req =
   Req.new()
-  |> Kubereq.attach()
-  |> Kubereq.set_resource("v1", "ServiceAccount")
+  |> Kubereq.attach(kubeconfig: kubeconfig, api_version: "v1", kind: "ServiceAccount")
 
-sa_req.options.resource_path
+Req.request(sa_req, operation: :get, path_params: [namespace: "default", name: "default"])
+
+# syntactig sugar:
+Kubereq.get(sa_req, "default", "default")
 ```
 
 The fourth argument takes a subresource as optional argument:
 
 ```elixir
-require Kubereq
-
 sa_req =
   Req.new()
-  |> Kubereq.attach()
-  |> Kubereq.set_resource("v1", "Pod", "status")
+  |> Kubereq.attach(kubeconfig: kubeconfig, api_version: "v1", kind: "Namespace")
 
-sa_req.options.resource_path
+Req.request(sa_req, operation: :get, path_params: [name: "default"])
+
+# syntactig sugar:
+Kubereq.get(sa_req, "default", "default", subresource: "status")
 ```
 
-Note that `Kubereq.set_resource/4` in this proposal is a macro because it lets us warn the user about Typos at compile time.
+For CRDs, `Kubereq` needs to discover the resource name from the cluster:
 
 ```elixir
-require Kubereq
-
-sa_req =
+cert_req =
   Req.new()
-  |> Kubereq.attach()
-  # note the missing c in Account:
-  |> Kubereq.set_resource("v1", "ServiceAcount")
+  |> Kubereq.attach(kubeconfig: kubeconfig, api_version: "cert-manager.io/v1", kind: "Certificate")
 
-sa_req.options.resource_path
+Req.request(cert_req, operation: :list)
+
+# syntactig sugar:
+Kubereq.list(cert_req)
 ```
-
-However, this always requires the `require Kubereq`. I'm not sure it is worth using a macro just for the compile-time check? Alternatively, this could be a normal function that falls back to a resource discovery call to the Kubernetes cluster at runtime.

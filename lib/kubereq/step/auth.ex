@@ -6,11 +6,6 @@ defmodule Kubereq.Step.Auth do
   alias Kubereq.Error.StepError
   alias Kubereq.Exec
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
-    Req.Request.prepend_request_steps(req, kubereq_auth: &call/1)
-  end
-
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req) when not is_map_key(req.options, :kubeconfig) do
     {req, StepError.new(:kubeconfig_not_loaded)}

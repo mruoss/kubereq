@@ -8,7 +8,6 @@ defmodule Kubereq.Error.StepError do
     kubeconfig_not_loaded:
       "The KubeConfig is not loaded. Make sure to add `:kubeconf` option to the `Req.Request`",
     resource_not_found: "The requested resource does not exist on the cluster",
-    gvk_missing: "Either of the options :kind or :api_version or both are missing.",
     operation_missing: "The :operation option is missing on the request."
   }
 

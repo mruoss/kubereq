@@ -4,47 +4,21 @@ defmodule Kubereq.Step.Operation do
   """
 
   alias Kubereq.Error.StepError
+  alias Kubereq.Error.StepError
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
+  def call(req) when not is_map_key(req.options, :operation) or is_nil(req.options.operation) do
     req
-    |> Req.Request.prepend_request_steps(kubereq_operation: &call/1)
-    |> Req.Request.register_options([
-      :operation,
-      :api_version,
-      :kind,
-      :subresource
-    ])
-  end
-
-  @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(req) when not is_map_key(req.options, :kubeconfig) do
-    {req, StepError.new(:kubeconfig_not_loaded)}
-  end
-
-  @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(req)
-      when not is_map_key(req.options, :api_version) or not is_map_key(req.options, :kind) do
-    {req, StepError.new(:gvk_missing)}
-  end
-
-  @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(req)
-      when not is_map_key(req.options, :operation) do
-    {req, StepError.new(:operation_missing)}
   end
 
   def call(req) do
-    case Kubereq.Discovery.resource_path_for(req, req.options.api_version, req.options.kind) do
+    case resource_path(req) do
       {:ok, resource_path} ->
         request_path =
-          if req.options.path_params[:namespace],
+          if req.options[:path_params][:namespace],
             do: resource_path,
             else: String.replace(resource_path, "/namespace/:namespace", "")
 
-        options =
-          operation(req.options.operation, request_path, req.options[:subresource])
-          |> Keyword.put(:base_url, req.options.kubeconfig.current_cluster["server"])
+        options = operation(req.options.operation, request_path, req.options[:subresource])
 
         Req.merge(req, options)
 
@@ -56,6 +30,12 @@ defmodule Kubereq.Step.Operation do
              ~s|The requested resource "#{req.options.kind}" of apiVersion "#{req.options.api_version} does not exist on the cluster."|
          }}
     end
+  end
+
+  defp resource_path(%{options: %{resource_path: resource_path}}), do: {:ok, resource_path}
+
+  defp resource_path(req) do
+    Kubereq.Discovery.resource_path_for(req, req.options.api_version, req.options.kind)
   end
 
   defp operation(:get, request_path, subresource) do

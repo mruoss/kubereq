@@ -25,13 +25,6 @@ defmodule Kubereq.Step.FieldSelector do
   * `{"metadata.namespace", {:ne, "default"}}`
   """
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
-    req
-    |> Req.Request.register_options([:field_selectors])
-    |> Req.Request.prepend_request_steps(field_selectors: &call/1)
-  end
-
   def call(%Req.Request{options: %{field_selectors: nil}} = req), do: req
 
   def call(%Req.Request{options: %{field_selectors: field_selectors}} = req) do

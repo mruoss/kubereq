@@ -51,39 +51,51 @@ defmodule Kubereq do
 
   @doc """
   Prepares a `Req.Request` struct for making HTTP requests to a Kubernetes
-  cluster.
-
-  ### Options
-
-  * `:kubeconfig` - Kubernetes configuration in the form of a
-  `%Kubereq.Kubeconfig{}` struct. It should contain all informations required to
-  connect to the Kubernetes cluster.
-  * `:resource_path` - The path on to the targeted resource endpoint. It should
-  contain placeholders for `:namespace` and `:name`.
+  cluster. The `kubeconfig` is the Kubernetes configuration in the form of a
+  `%Kubereq.Kubeconfig{}` struct and should contain all informations required to connect
+  to the Kubernetes cluster.
 
   ### Examples
 
-      iex> Kubereq.new()
-      %Request.Req{...}
-
-  Passing a kubeconfig loader pipeline
-
-      iex> Kubereq.new(kubeconfig: Kubereq.Kubeconfig.Default)
-      %Request.Req{...}
-
-  Passing a pre-loaded Kubeconfig
-
       iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
-      ...> Kubereq.new(kubeconfig: kubeconfig)
-      %Request.Req{...}
-
-  Passing `:kubeconfig` and `:resource_path`
-
-      iex> Kubereq.new(kubeconfig: Kubereq.Kubeconfig.Default, resource_path: "api/v1/namespaces/:namespace/configmaps/:name")
+      ...> Kubereq.new(kubeconfig)
       %Request.Req{...}
   """
-  @spec new(opts :: Keyword.t()) :: Req.Request.t()
-  def new(opts \\ []) do
+  @deprecated "Use Kubereq.attach/2"
+  @spec new(kubeconfig :: Kubereq.Kubeconfig.t()) :: Req.Request.t()
+  def new(kubeconfig) do
+    attach(Req.new(), kubeconfig: kubeconfig)
+  end
+
+  @doc """
+  Prepares a `Req.Request` struct for a specific resource on a specific
+  Kubernetes cluster. The `kubeconfig` is the Kubernetes configuration in the
+  form of a `%Kubereq.Kubeconfig{}` struct and should contain all informations required to
+  connect to the Kubernetes cluster.
+
+  The parameter `resource_path` should be the path on which the Kubernetes API
+  Server listens for requests for the targeted resource kind. It should
+  contain placeholders for `:namespace` and `:name`.
+
+  The `:namespace` and `:name` are provided through the `:path_params` option
+  built into `Req` when making the request.
+
+  ### Examples
+
+  Prepare a `Req.Request` for ConfigMaps:
+
+      iex> kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
+      ...> Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
+      %Request.Req{...}
+  """
+  @deprecated "Use Kubereq.attach/2"
+  @spec new(kubeconfig :: Kubereq.Kubeconfig.t(), resource_path :: binary()) :: Req.Request.t()
+  def new(kubeconfig, resource_path) do
+    attach(Req.new(), kubeconfig: kubeconfig, resource_path: resource_path)
+  end
+
+  @spec attach(req :: Req.Request.t(), opts :: Keyword.t()) :: Req.Request.t()
+  def attach(req, opts \\ []) do
     options =
       opts
       |> Keyword.put_new(:kubeconfig, Kubereq.Kubeconfig.Default)
@@ -92,16 +104,8 @@ defmodule Kubereq do
         pipeline -> Kubereq.Kubeconfig.load(pipeline)
       end)
 
-    Req.new()
-    |> Req.Request.register_options([:kubeconfig])
-    |> Step.FieldSelector.attach()
-    |> Step.LabelSelector.attach()
-    |> Step.Compression.attach()
-    |> Step.TLS.attach()
-    |> Step.Auth.attach()
-    |> Step.Impersonate.attach()
-    |> Step.Operation.attach()
-    |> Step.Plug.attach()
+    req
+    |> Step.attach()
     |> Req.merge(options)
   end
 
@@ -170,15 +174,17 @@ defmodule Kubereq do
   * `:field_selectors` - A list of field selectors. See `Kubereq.Step.FieldSelector` for more infos.
   * `:label_selectors` - A list of field selectors. See `Kubereq.Step.LabelSelector` for more infos.
   """
-  @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) ::
-          response()
+  @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
   def list(req, namespace, opts) do
-    Req.get(req,
-      operation: :list,
-      field_selectors: opts[:field_selectors],
-      label_selectors: opts[:label_selectors],
-      path_params: [namespace: namespace]
-    )
+    options =
+      Keyword.merge(opts,
+        operation: :list,
+        field_selectors: opts[:field_selectors],
+        label_selectors: opts[:label_selectors],
+        path_params: [namespace: namespace]
+      )
+
+    Req.request(req, options)
   end
 
   def list(req), do: list(req, nil, [])

@@ -6,11 +6,6 @@ defmodule Kubereq.Step.TLS do
   alias Kubereq.Error.KubeconfError
   alias Kubereq.Error.StepError
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
-    Req.Request.prepend_request_steps(req, kubereq_tls: &call/1)
-  end
-
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req) when not is_map_key(req.options, :kubeconfig) do
     {req, StepError.new(:kubeconfig_not_loaded)}

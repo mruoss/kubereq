@@ -1,4 +1,4 @@
-defmodule Kubereq.Step.Plug do
+defmodule Kubereq.Step.BaseURL do
   @moduledoc """
   Req step to derive the base URL to the cluster.
   """
@@ -11,9 +11,6 @@ defmodule Kubereq.Step.Plug do
   end
 
   def call(req) do
-    case req.options.kubeconfig.current_cluster["plug"] do
-      nil -> req
-      plug -> Req.merge(req, plug: plug)
-    end
+    Req.merge(req, base_url: req.options.kubeconfig.current_cluster["server"])
   end
 end

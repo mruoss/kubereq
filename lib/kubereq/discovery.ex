@@ -18,7 +18,8 @@ defmodule Kubereq.Discovery do
   end
 
   defp discover_resource_on_cluster(req, group_version, kind) do
-    case Req.get(req, url: "/apis/#{group_version}") do
+    # fixme: endless loop!
+    case Req.get(req, url: "/apis/#{group_version}", operation: nil) do
       {:ok, %Req.Response{status: 200, body: body}} ->
         case Enum.find(body["resources"], &(&1["kind"] == kind)) do
           nil -> :error
