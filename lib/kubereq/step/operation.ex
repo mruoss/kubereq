@@ -4,8 +4,8 @@ defmodule Kubereq.Step.Operation do
   """
 
   alias Kubereq.Error.StepError
-  alias Kubereq.Error.StepError
 
+  @spec call(req :: Req.Request.t()) :: Req.Request.t() | {Req.Request.t(), StepError.t()}
   def call(req) when not is_map_key(req.options, :operation) or is_nil(req.options.operation) do
     req
   end

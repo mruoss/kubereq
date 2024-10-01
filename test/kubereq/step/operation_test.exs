@@ -1,7 +1,18 @@
 defmodule Kubereq.Step.OperationTest do
   use ExUnit.Case, async: true
 
-  alias Kubereq.Step.Operation, as: MUT
+  setup do
+    Req.Test.verify_on_exit!()
+  end
 
-  # TODO: implement more tests
+  test "doesn't set url if operation is missing" do
+    kubeconfig = {Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}}
+
+    {_req, error} =
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
+      |> Req.request(api_version: "v1", kind: "ConfigMap")
+
+    assert error.code == :operation_missing
+  end
 end

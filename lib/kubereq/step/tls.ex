@@ -4,13 +4,8 @@ defmodule Kubereq.Step.TLS do
   """
 
   alias Kubereq.Error.KubeconfError
-  alias Kubereq.Error.StepError
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(req) when not is_map_key(req.options, :kubeconfig) do
-    {req, StepError.new(:kubeconfig_not_loaded)}
-  end
-
   def call(req) do
     Kubereq.Utils.add_ssl_opts(
       req,

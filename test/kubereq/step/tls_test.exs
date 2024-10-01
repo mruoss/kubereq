@@ -3,12 +3,6 @@ defmodule Kubereq.Step.TLSTest do
 
   alias Kubereq.Step.TLS, as: MUT
 
-  test "raises if no kubeconfig" do
-    {_req, error} = MUT.call(Req.new())
-    assert is_struct(error, Kubereq.Error.StepError)
-    assert error.code == :kubeconfig_not_loaded
-  end
-
   test "sets the verify option" do
     kubeconfig = Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
     req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
