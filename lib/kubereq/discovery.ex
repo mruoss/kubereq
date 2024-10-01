@@ -1,7 +1,7 @@
 defmodule Kubereq.Discovery do
   @moduledoc false
 
-  @resource_path_mapping elem(Code.eval_file("../../build/resource_path_mapping.ex", __DIR__), 0)
+  @resource_path_mapping Kubereq.Discovery.ResourcePathMapping.mapping()
 
   def resource_path_for(req, group_version, kind) do
     with {:ok, nil} <- {:ok, @resource_path_mapping["#{group_version}/#{kind}"]},
