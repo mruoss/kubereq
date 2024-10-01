@@ -65,14 +65,18 @@ api = extract_file.("api.json")
 
 core_apis =
   for version <- api["versions"],
-      api_resource <- format_api_resource_list.("api__#{version}.json"),
-      into: %{} do
-    if api_resource["namespaced"] do
-      {"#{version}/#{api_resource["kind"]}",
-       "api/#{version}/namespaces/:namespace/#{api_resource["name"]}/:name"}
-    else
-      {"#{version}/#{api_resource["kind"]}", "api/#{version}/#{api_resource["name"]}/:name"}
-    end
+      api_resource <- format_api_resource_list.("api__#{version}.json") do
+    path =
+      if api_resource["namespaced"] do
+        "api/#{version}/namespaces/:namespace/#{api_resource["name"]}/:name"
+      else
+        "api/#{version}/#{api_resource["name"]}/:name"
+      end
+
+    [
+      {String.downcase(api_resource["kind"]), path},
+      {String.downcase("#{version}/#{api_resource["kind"]}"), path}
+    ]
   end
 
 api_groups = extract_file.("apis.json")
@@ -81,24 +85,29 @@ extended_apis =
   for api_group <- api_groups["groups"],
       version <- api_group["versions"],
       api_resource <-
-        format_api_resource_list.("apis__#{api_group["name"]}__#{version["version"]}.json"),
-      into: %{} do
-    if api_resource["namespaced"] do
-      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}",
-       "apis/#{api_group["name"]}/#{version["version"]}/namespaces/:namespace/#{api_resource["name"]}/:name"}
-    else
-      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}",
-       "apis/#{api_group["name"]}/#{version["version"]}/#{api_resource["name"]}/:name"}
-    end
+        format_api_resource_list.("apis__#{api_group["name"]}__#{version["version"]}.json") do
+    path =
+      if api_resource["namespaced"] do
+        "apis/#{api_group["name"]}/#{version["version"]}/namespaces/:namespace/#{api_resource["name"]}/:name"
+      else
+        "apis/#{api_group["name"]}/#{version["version"]}/#{api_resource["name"]}/:name"
+      end
+
+    [
+      {String.downcase("#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}"),
+       path},
+      {String.downcase(api_resource["kind"]), path}
+    ]
   end
 
-discovery = Map.merge(core_apis, extended_apis)
+discovery = List.flatten(core_apis ++ extended_apis) |> Map.new()
 
 resource_path_mapping =
   quote do
     defmodule Kubereq.Discovery.ResourcePathMapping do
-      def mapping() do
-        unquote(discovery)
+      @spec lookup(key :: String.t()) :: String.t() | nil
+      def lookup(key) do
+        unquote(discovery)[String.downcase(key)]
       end
     end
   end

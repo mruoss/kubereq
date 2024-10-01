@@ -35,7 +35,7 @@ defmodule Kubereq.Step.Operation do
   defp resource_path(%{options: %{resource_path: resource_path}}), do: {:ok, resource_path}
 
   defp resource_path(req) do
-    Kubereq.Discovery.resource_path_for(req, req.options.api_version, req.options.kind)
+    Kubereq.Discovery.resource_path_for(req, req.options[:api_version], req.options.kind)
   end
 
   defp operation(:get, request_path, subresource) do

@@ -20,8 +20,7 @@ defmodule Kubereq.Step do
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req)
-      when not is_map_key(req.options, :resource_path) and
-             (not is_map_key(req.options, :api_version) or not is_map_key(req.options, :kind)) do
+      when not is_map_key(req.options, :resource_path) and not is_map_key(req.options, :kind) do
     req
   end
 

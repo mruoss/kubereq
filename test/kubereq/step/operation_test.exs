@@ -15,4 +15,15 @@ defmodule Kubereq.Step.OperationTest do
 
     assert error.code == :operation_missing
   end
+
+  test "Sets" do
+    kubeconfig = {Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}}
+
+    {_req, error} =
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
+      |> Req.request(api_version: "v1", kind: "ConfigMap")
+
+    assert error.code == :operation_missing
+  end
 end

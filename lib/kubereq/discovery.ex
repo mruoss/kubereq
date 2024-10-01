@@ -1,10 +1,16 @@
 defmodule Kubereq.Discovery do
   @moduledoc false
 
-  @resource_path_mapping Kubereq.Discovery.ResourcePathMapping.mapping()
+  def resource_path_for(_req, nil, kind) do
+    case Kubereq.Discovery.ResourcePathMapping.lookup(kind) do
+      nil -> :error
+      path -> {:ok, path}
+    end
+  end
 
   def resource_path_for(req, group_version, kind) do
-    with {:ok, nil} <- {:ok, @resource_path_mapping["#{group_version}/#{kind}"]},
+    with {:ok, nil} <-
+           {:ok, Kubereq.Discovery.ResourcePathMapping.lookup("#{group_version}/#{kind}")},
          {:ok, resource} <- discover_resource_on_cluster(req, group_version, kind) do
       path =
         if resource["namespaced"] do
