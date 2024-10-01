@@ -9,7 +9,6 @@ defmodule Kubereq.Step.ImpersonateTest do
     assert error.code == :kubeconfig_not_loaded
   end
 
-  @tag :wip
   test "Sets impersonation headers" do
     kubeconfig =
       Kubereq.Kubeconfig.new!(
@@ -25,7 +24,8 @@ defmodule Kubereq.Step.ImpersonateTest do
         }
       )
 
-    Kubereq.new(kubeconfig: kubeconfig)
+    Req.new()
+    |> Kubereq.attach(kubeconfig: kubeconfig)
     |> MUT.call()
     |> Req.merge(
       plug: fn conn ->

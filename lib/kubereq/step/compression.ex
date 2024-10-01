@@ -19,5 +19,7 @@ defmodule Kubereq.Step.Compression do
     Req.merge(req, compress_body: false)
   end
 
-  defp compression(req, _), do: Req.merge(req, compress_body: not is_nil(req.body))
+  defp compression(req, _) do
+    Req.merge(req, compress_body: not is_nil(req.body))
+  end
 end

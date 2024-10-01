@@ -2,8 +2,8 @@
 
 ```elixir
 Mix.install([
-  # {:kubereq, github: "mruoss/kubereq", ref: "compile-time-resource-path-lookup"},
-  {:kubereq, path: "/Users/mruoss/src/community/kubereq"},
+  {:kubereq, github: "mruoss/kubereq", ref: "compile-time-resource-path-lookup"},
+  # {:kubereq, path: "/Users/mruoss/src/community/kubereq"},
   {:kino, "~> 0.14.1"}
 ])
 ```

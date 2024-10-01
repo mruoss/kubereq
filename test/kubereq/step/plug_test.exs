@@ -24,7 +24,8 @@ defmodule Kubereq.Step.PlugTest do
       )
 
     {:ok, resp} =
-      Kubereq.new(kubeconfig: kubeconfig)
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
       |> MUT.call()
       |> Req.request(
         api_version: "v1",
@@ -57,7 +58,8 @@ defmodule Kubereq.Step.PlugTest do
       |> Kubeconfig.set_current_context("foo")
 
     {:ok, resp} =
-      Kubereq.new(kubeconfig: kubeconfig)
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
       |> MUT.call()
       |> Req.request(
         api_version: "v1",
@@ -69,7 +71,8 @@ defmodule Kubereq.Step.PlugTest do
     assert resp.body == "Foo called"
 
     {:ok, resp} =
-      Kubereq.new(kubeconfig: Kubeconfig.set_current_context(kubeconfig, "bar"))
+      Req.new()
+      |> Kubereq.attach(kubeconfig: Kubeconfig.set_current_context(kubeconfig, "bar"))
       |> MUT.call()
       |> Req.request(
         api_version: "v1",

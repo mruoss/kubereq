@@ -1,5 +1,6 @@
 defmodule KubereqIntegrationTest do
   use ExUnit.Case, async: true
+  @moduletag :integration
 
   import YamlElixir.Sigil
 
@@ -25,8 +26,12 @@ defmodule KubereqIntegrationTest do
     end
 
     kubeconf = {Kubereq.Kubeconfig.File, path: "test/support/kubeconfig-integration.yaml"}
-    req_ns = Kubereq.new(kubeconfig: kubeconf, api_version: "v1", kind: "Namespace")
-    req_cm = Kubereq.new(kubeconfig: kubeconf, api_version: "v1", kind: "ConfigMap")
+
+    req_ns =
+      Req.new() |> Kubereq.attach(kubeconfig: kubeconf, api_version: "v1", kind: "Namespace")
+
+    req_cm =
+      Req.new() |> Kubereq.attach(kubeconfig: kubeconf, api_version: "v1", kind: "ConfigMap")
 
     {:ok, _} =
       Kubereq.apply(req_ns, ~y"""
@@ -74,7 +79,6 @@ defmodule KubereqIntegrationTest do
     [example_config_1: example_config_1, example_config_2: example_config_2]
   end
 
-  @tag :integration
   test "basic CRUD", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert 201 == resp.status
@@ -108,7 +112,6 @@ defmodule KubereqIntegrationTest do
     assert :ok == result
   end
 
-  @tag :wip
   test "Apply subresource", %{req_ns: req_ns} do
     ns = ~y"""
       apiVersion: v1
@@ -123,7 +126,6 @@ defmodule KubereqIntegrationTest do
     assert 200 = resp.status
   end
 
-  @tag :wip
   test "Wait until returns error when deleted", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert 201 == resp.status
@@ -145,7 +147,6 @@ defmodule KubereqIntegrationTest do
     assert {:error, "Deleted"} == result
   end
 
-  @tag :integration
   test "List resources", %{
     req_cm: req,
     example_config_1: example_config_1,
@@ -163,7 +164,6 @@ defmodule KubereqIntegrationTest do
     assert example_config_2["metadata"]["name"] in resource_names
   end
 
-  @tag :integration
   test "JSON patch", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert "bar" == resp.body["data"]["foo"]
@@ -183,7 +183,6 @@ defmodule KubereqIntegrationTest do
     assert :ok == result
   end
 
-  @tag :integration
   test "Merge patch", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert "bar" == resp.body["data"]["foo"]
@@ -203,7 +202,6 @@ defmodule KubereqIntegrationTest do
     assert :ok == result
   end
 
-  @tag :integration
   test "Watch all resources of a kind in a namespace", %{
     req_cm: req,
     example_config_1: example_config_1
@@ -229,7 +227,6 @@ defmodule KubereqIntegrationTest do
                     %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
   end
 
-  @tag :integration
   test "Watch a single resource of a kind in a namespace", %{
     req_cm: req,
     example_config_1: example_config_1

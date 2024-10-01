@@ -13,34 +13,33 @@ defmodule Kubereq.Step.CompressionTest do
     kubeconfig =
       Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
 
-    req =
-      Kubereq.new(kubeconfig: kubeconfig)
-      |> MUT.call()
-      |> Req.merge(
-        plug: fn conn ->
-          assert {"content-encoding", "gzip"} in conn.req_headers
-          Req.Test.json(conn, %{})
-        end
-      )
-
-    Req.request(req, body: %{})
-  end
-
-  test "enables compression upon request" do
-    kubeconfig =
-      Kubereq.Kubeconfig.new!(
-        current_cluster: %{"server" => "https://example.com", "disable-compression" => false}
-      )
-
-    Kubereq.new(kubeconfig: kubeconfig)
-    |> MUT.call()
+    Req.new()
+    |> Kubereq.attach(kubeconfig: kubeconfig)
     |> Req.merge(
       plug: fn conn ->
         assert {"content-encoding", "gzip"} in conn.req_headers
         Req.Test.json(conn, %{})
       end
     )
-    |> Req.request(body: %{})
+    |> Req.request(body: %{}, api_version: "v1", kind: "ConfigMap")
+  end
+
+  @tag :wip
+  test "enables compression upon request" do
+    kubeconfig =
+      Kubereq.Kubeconfig.new!(
+        current_cluster: %{"server" => "https://example.com", "disable-compression" => false}
+      )
+
+    Req.new()
+    |> Kubereq.attach(kubeconfig: kubeconfig, body: %{})
+    |> Req.merge(
+      plug: fn conn ->
+        assert {"content-encoding", "gzip"} in conn.req_headers
+        Req.Test.json(conn, %{})
+      end
+    )
+    |> Req.request(body: %{}, api_version: "v1", kind: "ConfigMap")
   end
 
   test "disables compression upon request" do
@@ -49,29 +48,29 @@ defmodule Kubereq.Step.CompressionTest do
         current_cluster: %{"server" => "https://example.com", "disable-compression" => true}
       )
 
-    Kubereq.new(kubeconfig: kubeconfig)
-    |> MUT.call()
+    Req.new()
+    |> Kubereq.attach(kubeconfig: kubeconfig)
     |> Req.merge(
       plug: fn conn ->
         refute {"content-encoding", "gzip"} in conn.req_headers
         Req.Test.json(conn, %{})
       end
     )
-    |> Req.request(body: %{})
+    |> Req.request(body: %{}, api_version: "v1", kind: "ConfigMap")
   end
 
   test "disables compression if request body is nil" do
     kubeconfig =
       Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
 
-    Kubereq.new(kubeconfig: kubeconfig)
-    |> MUT.call()
+    Req.new()
+    |> Kubereq.attach(kubeconfig: kubeconfig)
     |> Req.merge(
       plug: fn conn ->
         refute {"content-encoding", "gzip"} in conn.req_headers
         Req.Test.json(conn, %{})
       end
     )
-    |> Req.request()
+    |> Req.request(body: %{}, api_version: "v1", kind: "ConfigMap")
   end
 end

@@ -399,7 +399,7 @@ defmodule Kubereq do
         ) :: wait_until_response()
   def wait_until(req, namespace, name, callback, timeout) do
     ref = make_ref()
-    opts = [field_selectors: [{"metadata.name", name}], stream_to: {self(), ref}]
+    opts = [field_selectors: [{"metadata.name", name}]]
 
     with {:ok, resp} <- list(req, namespace, opts),
          {:init, false} <- {:init, callback.(List.first(resp.body["items"]) || :deleted)} do
@@ -407,7 +407,10 @@ defmodule Kubereq do
         watch(
           req,
           namespace,
-          Keyword.put(opts, :resource_version, resp.body["metadata"]["resourceVersion"])
+          Keyword.merge(opts,
+            resource_version: resp.body["metadata"]["resourceVersion"],
+            stream_to: {self(), ref}
+          )
         )
 
       timer = Process.send_after(self(), {ref, :timeout}, timeout)
@@ -479,9 +482,10 @@ defmodule Kubereq do
           watch_response()
   def watch(req, namespace, opts) do
     resource_version = opts[:resource_version]
-    do_watch = fn -> do_watch(req, namespace, resource_version, opts) end
+    {local_opts, req_opts} = Keyword.split(opts, [:stream_to])
+    do_watch = fn -> do_watch(req, namespace, resource_version, req_opts) end
 
-    case opts[:stream_to] do
+    case local_opts[:stream_to] do
       nil ->
         do_watch.()
 
@@ -577,7 +581,7 @@ defmodule Kubereq do
   defp do_watch(req, namespace, resource_version, opts) do
     with {:ok, resp} <-
            Req.get(req,
-             url: req.options.resource_list_path,
+             operation: :watch,
              field_selectors: opts[:field_selectors],
              label_selectors: opts[:label_selectors],
              path_params: [namespace: namespace],
