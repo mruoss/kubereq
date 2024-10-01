@@ -16,7 +16,7 @@ defmodule Kubereq.Step.Operation do
         request_path =
           if req.options[:path_params][:namespace],
             do: resource_path,
-            else: String.replace(resource_path, "/namespace/:namespace", "")
+            else: String.replace(resource_path, "/namespaces/:namespace", "")
 
         options = operation(req.options.operation, request_path, req.options[:subresource])
 

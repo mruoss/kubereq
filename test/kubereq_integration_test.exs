@@ -48,6 +48,8 @@ defmodule KubereqIntegrationTest do
   end
 
   setup %{req_cm: req_cm} do
+    test_id = :rand.uniform(10)
+
     example_config_1 = ~y"""
     apiVersion: v1
     kind: ConfigMap
@@ -55,6 +57,7 @@ defmodule KubereqIntegrationTest do
       name: example-config-1-#{:rand.uniform(10000)}
       namespace: #{@namespace}
       labels:
+        test: kubereq-#{test_id}
         app: kubereq
     data:
       foo: bar
@@ -67,6 +70,7 @@ defmodule KubereqIntegrationTest do
       name: example-config-2-#{:rand.uniform(10000)}
       namespace: #{@namespace}
       labels:
+        test: kubereq-#{test_id}
         app: kubereq
     data:
       foo: bar
@@ -76,7 +80,7 @@ defmodule KubereqIntegrationTest do
       Kubereq.delete_all(req_cm, @namespace, label_selectors: [{"app", "kubereq"}])
     end)
 
-    [example_config_1: example_config_1, example_config_2: example_config_2]
+    [example_config_1: example_config_1, example_config_2: example_config_2, test_id: test_id]
   end
 
   test "basic CRUD", %{req_cm: req, example_config_1: example_config_1} do
@@ -150,11 +154,12 @@ defmodule KubereqIntegrationTest do
   test "List resources", %{
     req_cm: req,
     example_config_1: example_config_1,
-    example_config_2: example_config_2
+    example_config_2: example_config_2,
+    test_id: test_id
   } do
     {:ok, _resp} = Kubereq.create(req, example_config_1)
     {:ok, _resp} = Kubereq.create(req, example_config_2)
-    {:ok, resp} = Kubereq.list(req, @namespace, label_selectors: "app=kubereq")
+    {:ok, resp} = Kubereq.list(req, @namespace, label_selectors: "test=kubereq-#{test_id}")
 
     items = resp.body["items"]
     assert is_list(items)

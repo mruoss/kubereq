@@ -74,8 +74,8 @@ core_apis =
       end
 
     [
-      {String.downcase(api_resource["kind"]), path},
-      {String.downcase("#{version}/#{api_resource["kind"]}"), path}
+      {api_resource["kind"], path},
+      {"#{version}/#{api_resource["kind"]}", path}
     ]
   end
 
@@ -94,9 +94,8 @@ extended_apis =
       end
 
     [
-      {String.downcase("#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}"),
-       path},
-      {String.downcase(api_resource["kind"]), path}
+      {"#{api_group["name"]}/#{version["version"]}/#{api_resource["kind"]}", path},
+      {api_resource["kind"], path}
     ]
   end
 
@@ -107,7 +106,7 @@ resource_path_mapping =
     defmodule Kubereq.Discovery.ResourcePathMapping do
       @spec lookup(key :: String.t()) :: String.t() | nil
       def lookup(key) do
-        unquote(discovery)[String.downcase(key)]
+        unquote(discovery)[key]
       end
     end
   end
