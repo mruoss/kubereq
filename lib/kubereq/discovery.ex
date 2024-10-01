@@ -1,8 +1,9 @@
 defmodule Kubereq.Discovery do
   @moduledoc false
+  alias Kubereq.Discovery.ResourcePathMapping
 
   def resource_path_for(_req, nil, kind) do
-    case Kubereq.Discovery.ResourcePathMapping.lookup(kind) do
+    case ResourcePathMapping.lookup(kind) do
       nil -> :error
       path -> {:ok, path}
     end
@@ -10,7 +11,7 @@ defmodule Kubereq.Discovery do
 
   def resource_path_for(req, group_version, kind) do
     with {:ok, nil} <-
-           {:ok, Kubereq.Discovery.ResourcePathMapping.lookup("#{group_version}/#{kind}")},
+           {:ok, ResourcePathMapping.lookup("#{group_version}/#{kind}")},
          {:ok, resource} <- discover_resource_on_cluster(req, group_version, kind) do
       path =
         if resource["namespaced"] do
@@ -24,7 +25,6 @@ defmodule Kubereq.Discovery do
   end
 
   defp discover_resource_on_cluster(req, group_version, kind) do
-    # fixme: endless loop!
     case Req.get(req, url: "/apis/#{group_version}", operation: nil) do
       {:ok, %Req.Response{status: 200, body: body}} ->
         case Enum.find(body["resources"], &(&1["kind"] == kind)) do

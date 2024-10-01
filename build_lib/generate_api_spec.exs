@@ -104,6 +104,8 @@ discovery = List.flatten(core_apis ++ extended_apis) |> Map.new()
 resource_path_mapping =
   quote do
     defmodule Kubereq.Discovery.ResourcePathMapping do
+      @moduledoc false
+
       @spec lookup(key :: String.t()) :: String.t() | nil
       def lookup(key) do
         unquote(discovery)[key]
@@ -111,9 +113,15 @@ resource_path_mapping =
     end
   end
 
+{:ok, out_file} = File.open(out_path, [:write])
+
 # https://elixirforum.com/t/how-to-increase-printable-limit-from-macro-to-string/13613/5?u=mruoss
 Macro.to_string(resource_path_mapping, fn
   node, _ when is_binary(node) -> inspect(node, printable_limit: :infinity)
   _, string -> string
 end)
-|> then(&File.write!(out_path, &1))
+|> Code.format_string!()
+|> then(&IO.write(out_file, &1))
+
+IO.write(out_file, "\n")
+File.close(out_file)

@@ -1,7 +1,11 @@
 defmodule Kubereq.Step do
+  @moduledoc """
+  Main Req Step of the Kubereq library. Calls all the substeps.
+  """
+
+  alias Kubereq.Error.StepError
   alias Kubereq.Step
-  alias Kubereq.Error.StepError
-  alias Kubereq.Error.StepError
+
   @spec attach(Req.Request.t()) :: Req.Request.t()
   def attach(req) do
     req
