@@ -395,7 +395,7 @@ defmodule Kubereq do
           namespace :: namespace(),
           name :: String.t(),
           callback :: wait_until_callback(),
-          timeout :: non_neg_integer()
+          timeout :: non_neg_integer() | :infinity
         ) :: wait_until_response()
   def wait_until(req, namespace, name, callback, timeout) do
     ref = make_ref()
@@ -425,14 +425,14 @@ defmodule Kubereq do
     end
   end
 
-  def wait_until(req, name, callback), do: wait_until(req, name, nil, callback, 10_000)
+  def wait_until(req, name, callback), do: wait_until(req, nil, name, callback, 10_000)
 
-  def wait_until(req, name, namespace, callback) when is_function(callback) do
-    wait_until(req, name, namespace, callback, 10_000)
+  def wait_until(req, namespace, name, callback) when is_function(callback) do
+    wait_until(req, namespace, name, callback, 10_000)
   end
 
   def wait_until(req, name, callback, timeout) do
-    wait_until(req, name, nil, callback, timeout)
+    wait_until(req, nil, name, callback, timeout)
   end
 
   defp wait_event_loop(ref, callback) do
