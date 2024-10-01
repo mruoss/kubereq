@@ -1,7 +1,7 @@
 Application.ensure_all_started([:inets, :ssl])
 
 archive_path = ~c'_build/kubernetes.tgz'
-out_path = "build/resource_path_mapping.ex"
+out_path = "lib/kubereq/discovery/resource_path_mapping.ex"
 gh_token = System.fetch_env!("GITHUB_TOKEN")
 
 to_string = fn
@@ -19,6 +19,7 @@ json_decode = fn str ->
     str
     |> to_string.()
     |> :json.decode(:ok, %{null: nil})
+
   body
 end
 
@@ -70,8 +71,7 @@ core_apis =
       {"#{version}/#{api_resource["kind"]}",
        "api/#{version}/namespaces/:namespace/#{api_resource["name"]}/:name"}
     else
-      {"#{version}/#{api_resource["kind"]}",
-       "api/#{version}/#{api_resource["name"]}/:name"}
+      {"#{version}/#{api_resource["kind"]}", "api/#{version}/#{api_resource["name"]}/:name"}
     end
   end
 
@@ -93,4 +93,19 @@ extended_apis =
   end
 
 discovery = Map.merge(core_apis, extended_apis)
-File.write!(out_path, inspect(discovery, printable_limit: :infinity, limit: :infinity))
+
+resource_path_mapping =
+  quote do
+    defmodule Kubereq.Discovery.ResourcePathMapping do
+      def mapping() do
+        unquote(discovery)
+      end
+    end
+  end
+
+# https://elixirforum.com/t/how-to-increase-printable-limit-from-macro-to-string/13613/5?u=mruoss
+Macro.to_string(resource_path_mapping, fn
+  node, _ when is_binary(node) -> inspect(node, printable_limit: :infinity)
+  _, string -> string
+end)
+|> then(&File.write!(out_path, &1))
