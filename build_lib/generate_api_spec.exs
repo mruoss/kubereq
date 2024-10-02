@@ -108,7 +108,7 @@ resource_path_mapping =
 
       @spec lookup(key :: String.t()) :: String.t() | nil
       def lookup(key) do
-        unquote(discovery)[key]
+        unquote(Macro.escape(discovery))[key]
       end
     end
   end
@@ -116,10 +116,8 @@ resource_path_mapping =
 {:ok, out_file} = File.open(out_path, [:write])
 
 # https://elixirforum.com/t/how-to-increase-printable-limit-from-macro-to-string/13613/5?u=mruoss
-Macro.to_string(resource_path_mapping, fn
-  node, _ when is_binary(node) -> inspect(node, printable_limit: :infinity)
-  _, string -> string
-end)
+resource_path_mapping
+|> Macro.to_string()
 |> Code.format_string!()
 |> then(&IO.write(out_file, &1))
 
