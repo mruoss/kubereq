@@ -1,7 +1,5 @@
 defmodule Kubereq.Step.TLS do
-  @moduledoc """
-  Req step to derive TLS configuration from the Kubeconfig.
-  """
+  @moduledoc false
 
   alias Kubereq.Error.KubeconfError
 

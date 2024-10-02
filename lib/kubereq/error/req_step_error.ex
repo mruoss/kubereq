@@ -1,4 +1,8 @@
 defmodule Kubereq.Error.StepError do
+  @moduledoc """
+  Indicates an error during the Req steps processing.
+  """
+
   @enforce_keys [:message, :code]
   defexception [:message, :code, upstream: nil]
 

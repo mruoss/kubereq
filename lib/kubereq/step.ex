@@ -1,7 +1,5 @@
 defmodule Kubereq.Step do
-  @moduledoc """
-  Main Req Step of the Kubereq library. Calls all the substeps.
-  """
+  @moduledoc false
 
   alias Kubereq.Error.StepError
   alias Kubereq.Step

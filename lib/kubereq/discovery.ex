@@ -1,5 +1,6 @@
 defmodule Kubereq.Discovery do
   @moduledoc false
+
   alias Kubereq.Discovery.ResourcePathMapping
 
   def resource_path_for(_req, nil, kind) do

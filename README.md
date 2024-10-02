@@ -30,101 +30,77 @@ end
 
 The docs can be found at <https://hexdocs.pm/kubereq>.
 
-## Usage with [`kubegen`](https://github.com/mruoss/kubegen)
+## Usage
 
-Unless you want to build your clients yourself, you can use
-[`kubegen`](https://github.com/mruoss/kubegen) to generate clients for each
-resource kind you need. Check out [`kubegen`](https://github.com/mruoss/kubegen).
+This library can used with plan `Req` but the function in this module
+provide an easier API to people used to `kubectl` and friends.
 
-## Build your own clients
+### Plain Req
 
-### Define how to load the Kubernetes Config
-
-In order to get started quickly, you can just use the default pipeline
-(`Kubereq.Kubeconfig.Default`) which tries to load the Kubernetes configuration
-one-by-one from well-known sources.
-
-If you need more sophisticated rules, you can build your own Kubeconfig loader
-pipeline by creating a module `use`-ing [`Pluggable.StepBuilder`](https://hexdocs.pm/pluggable/Pluggable.StepBuilder.html)
-and adding `Pluggable` steps defined by this module. The mechanism is exactly
-the same as you know from the `Plug` library.
-
-In fact, the default pipeline mentioned above is implemented defining a set of
-steps.
+Use `Kubereq.Kubeconfig.Default` to create connection to cluster and
+plain `Req.request()` to make the request
 
 ```ex
-defmodule Kubereq.Kubeconfig.Default do
-  use Pluggable.StepBuilder
+req = Req.new() |> Kubereq.attach()
 
-  step Kubereq.Kubeconfig.ENV
-  step Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true
-  step Kubereq.Kubeconfig.ServiceAccount
-end
+Req.request!(req,
+  api_version: "v1",
+  kind: "ServiceAccount",
+  operation: :get,
+  path_params: [namespace: "default", name: "default"]
+)
 ```
 
-### Load the Kubernetes Config
-
-With the pipeline defined or implemented, you can now call
-`Kubereq.Kubeconfig.load/1` to load the config:
+You can pass your own Kubeconfigloader pipeline when attaching:
 
 ```ex
-Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
+req = Req.new() |> Kubereq.attach(kubeconfig: {Kubereq.Kubeconfig.File, path: "/path/to/kubeconfig.yaml"})
+
+Req.request!(req,
+  api_version: "v1",
+  kind: "ServiceAccount",
+  operation: :get,
+  path_params: [namespace: "default", name: "default"]
+)
 ```
 
-If your pipelines requires options, you can pass a tuple to
-`Kubereq.Kubeconfig.load/1`:
+Prepare a `Req` struct for a specific resource:
 
 ```ex
-Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true})
+sa_req = Req.new() |> Kubereq.attach(api_version: "v1", kind: "ServiceAccount")
+
+Req.request!(sa_req,  operation: :get, path_params: [namespace: "default", name: "default"])
+Req.request!(sa_req,  operation: :list, path_params: [namespace: "default"])
 ```
 
-Instead of creating a new module, you can also pass a list of steps to
-`Kubereq.Kubeconfig.load/1`:
+### Kubectl API
+
+While this library can attach to any `Req` struct, it is sometimes easier
+to prepare `Req` for a specific resource and then use the functions
+defined in the `Kubereq` module.
 
 ```ex
-Kubereq.Kubeconfig.load([
-  Kubereq.Kubeconfig.ENV,
-  {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true},
-  Kubereq.Kubeconfig.ServiceAccount
-])
+sa_req = Req.new() |> Kubereq.attach(api_version: "v1", kind: "ServiceAccount")
+
+Kubereq.get(sa_req, "my-namespace", "default")
+Kubereq.list(sa_req, "my-namespace")
 ```
 
-### Building the `Req.Request` struct
-
-Once you have loaded the, you can pass it to `Kubereq.new/1` to get a
-`%Req.Request{}` struct which is prepared to make requests to the Kubernetes
-API Server for **a specific resource kind**. It expects the `kubeconf` as first
-argument and the `path` to the resource as second argument. The path should
-contain placeholders for `:namespace` and `:name` which are filled once you make
-a request to a specific resource.
-
-The following example builds a `%Req.Request{}` which acts as client for running
-operations on `ConfigMaps`:
+Or use the functions right away, defining the resource through options:
 
 ```ex
-kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
-req = Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
+req = Req.new() |> Kubereq.attach()
+
+Kubereq.get(req, "my-namespace", "default", api_version: "v1", kind: "ServiceAccount")
+
+# get the "status" subresource of the default namespace
+Kubereq.get(req, "my-namespace", api_version: "v1", kind: "Namespace", subresource: "status")
 ```
 
-### Running Operations
-
-With the `req` built above, you can now use the other functions defined by
-`Kubereq` to run operations - in this example on `ConfigMaps`.
+For resources defined by Kubernetes, the `api_version` can be omitted:
 
 ```ex
-kubeconfig = Kubereq.Kubeconfig.load(Kubereq.Kubeconfig.Default)
-req = Kubereq.new(kubeconfig, "api/v1/namespaces/:namespace/configmaps/:name")
-
-{:ok, resp} = Kubereq.get(req, "my-namespace", "my-config-map")
+Req.new()
+|> Kubereq.attach(kind: "Namespace")
+|> Kubereq.get("my-namespace")
 ```
-
-`resp` is a `Req.Response.t()` and you can check for `req.status` and get
-`req.body` etc.
-
-## Testing / Stubbing
-
-Since `kubereq` is using `Req` under the hood, we can use
-[`Req.Test`](https://hexdocs.pm/req/Req.Test.html) to run requests through
-mocks/stubs. Use the special `Kubereq.Kubeconfig.Stub` to set stubs on the
-resulting `Req.Request` structs. See `Kubereq.Kubeconfig.Stub` for further
-documentation

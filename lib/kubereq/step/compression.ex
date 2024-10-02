@@ -1,7 +1,5 @@
 defmodule Kubereq.Step.Compression do
-  @moduledoc """
-  Req step to derive compression headers from the Kubeconfig.
-  """
+  @moduledoc false
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req) do

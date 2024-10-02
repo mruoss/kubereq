@@ -1,7 +1,5 @@
 defmodule Kubereq.Step.Operation do
-  @moduledoc """
-  Req step to derive the options for the given operation.
-  """
+  @moduledoc false
 
   alias Kubereq.Error.StepError
 

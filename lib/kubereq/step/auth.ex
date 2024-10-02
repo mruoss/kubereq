@@ -1,7 +1,5 @@
 defmodule Kubereq.Step.Auth do
-  @moduledoc """
-  Req step to derive Req steps necessary for auth to the cluster.
-  """
+  @moduledoc false
 
   alias Kubereq.Error.StepError
   alias Kubereq.Exec

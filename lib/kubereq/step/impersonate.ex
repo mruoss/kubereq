@@ -1,7 +1,5 @@
 defmodule Kubereq.Step.Impersonate do
-  @moduledoc """
-  Req step to derive impersonation headers from the Kubeconfig.
-  """
+  @moduledoc false
 
   alias Kubereq.Error.StepError
 
