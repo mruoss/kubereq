@@ -222,7 +222,10 @@ defmodule Kubereq do
   end
 
   def list(req), do: list(req, nil, [])
-  def list(req, namespace) when is_binary(namespace), do: list(req, namespace, [])
+
+  def list(req, namespace) when is_binary(namespace) or is_nil(namespace),
+    do: list(req, namespace, [])
+
   def list(req, opts) when is_list(opts), do: list(req, nil, opts)
 
   @doc """
@@ -269,7 +272,10 @@ defmodule Kubereq do
   end
 
   def delete_all(req), do: delete_all(req, nil, [])
-  def delete_all(req, namespace) when is_binary(namespace), do: delete_all(req, namespace, [])
+
+  def delete_all(req, namespace) when is_binary(namespace) or is_nil(namespace),
+    do: delete_all(req, namespace, [])
+
   def delete_all(req, opts) when is_list(opts), do: delete_all(req, nil, opts)
 
   @doc """
@@ -534,7 +540,10 @@ defmodule Kubereq do
   end
 
   def watch(req), do: watch(req, nil, [])
-  def watch(req, namespace) when is_binary(namespace), do: watch(req, namespace, [])
+
+  def watch(req, namespace) when is_binary(namespace) or is_nil(namespace),
+    do: watch(req, namespace, [])
+
   def watch(req, opts) when is_list(opts), do: watch(req, nil, opts)
 
   @doc """
@@ -577,7 +586,7 @@ defmodule Kubereq do
 
   def watch_single(req, name), do: watch_single(req, nil, name, [])
 
-  def watch_single(req, namespace, name) when is_binary(namespace) do
+  def watch_single(req, namespace, name) when is_binary(namespace) or is_nil(namespace) do
     watch_single(req, namespace, name, [])
   end
 
