@@ -6,13 +6,6 @@ defmodule Kubereq.Kubeconfig.File do
   step Kubereq.Kubeconfig.File, path: "path/to/kubeconfig-integration.yaml"
   ```
 
-  Pass `:relative_to_home?` to interprete the `:path` relative to the current
-  user's home directory at run time.
-
-  ```
-  step Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true
-  ```
-
   If the config file defined by the `:path` option is not found on disk, by
   default, the step gracefully returns the kubeconfig that was passed as
   argument. If you want the step to raise an `ArgumentException` instead, you
@@ -21,8 +14,6 @@ defmodule Kubereq.Kubeconfig.File do
   ### Options
 
   * `:path` - Path to the config file.
-  * `:relative_to_home` - (optional) Interprete the `:path` as relative to the
-    user's home directory at runtime. Defaults to `false`.
   * `:!` - (optional. And yes, that's a valid atom) Raise an exception if the
     config file is not found. Defaults to `false`.
   * `:context` - (optional) Sets the current context in case there's multiple
@@ -41,7 +32,7 @@ defmodule Kubereq.Kubeconfig.File do
       raise ArgumentError, "Please pass a :path option contatining the path to the config file."
     end
 
-    Keyword.validate!(opts, [:path, :relative_to_home?, :context, :!])
+    Keyword.validate!(opts, [:path, :context, :!])
   end
 
   @impl true
@@ -51,11 +42,7 @@ defmodule Kubereq.Kubeconfig.File do
       raise ArgumentError, "Please pass a :path option contatining the path to the config file."
     end
 
-    path =
-      if opts[:relative_to_home?],
-        do: Path.join(System.user_home!(), opts[:path]),
-        else: Path.expand(opts[:path])
-
+    path = Path.expand(opts[:path])
     raise? = Keyword.get(opts, :!, false)
 
     case File.exists?(path) do

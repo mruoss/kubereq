@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+### ⚠️ Breaking ⚠️
+
+This release comes with a refactored API of the `kubereq` library and will not
+work for code using earlier versions of `kubereq`. Migrating should be straight
+forward in most cases.
+
+- `Kubereq.new/N` was deprecated and replaced with `Kubereq.attach/1`
+- The result of `Kuberq.attach/1` can be used with `Req` functions directly
+- Functions in the `Kubereq` modules still provide a nice abstraction over plain
+  `Req`. They now forward all `opts` to `Req`.
+- `Kubereq.wait_until/5` now takes a Keyword list as fifth argument (was
+  `integer` before). To migrate, just turn `timeout` into `timeout: timeout`
+
 ## 0.2.1 - 2024-10-03
 
 ### Fixed

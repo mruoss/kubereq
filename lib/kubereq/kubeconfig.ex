@@ -113,7 +113,7 @@ defmodule Kubereq.Kubeconfig do
 
       Kubereq.Kubeconfig.load([
         Kubereq.Kubeconfig.ENV,
-        {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true},
+        {Kubereq.Kubeconfig.File, path: "~/.kube/config"},
         Kubereq.Kubeconfig.ServiceAccount
       ])
   """

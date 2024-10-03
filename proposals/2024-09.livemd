@@ -36,15 +36,11 @@ req1 = Req.new() |> Kubereq.attach()
 # pass Kubeconfnig pipeline which will be loaded by `Kubereq.attach/2`:
 req2 =
   Req.new()
-  |> Kubereq.attach(
-    kubeconfig: {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true}
-  )
+  |> Kubereq.attach(kubeconfig: {Kubereq.Kubeconfig.File, path: "~/.kube/config"})
 
 # pass loaded %Kubereq.Kubeconfig{} struct to `Kubereq.attach/2`:
 kubeconfig =
-  Kubereq.Kubeconfig.load(
-    {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true}
-  )
+  Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.File, path: "~/.kube/config"})
 req3 =
   Req.new()
   |> Kubereq.attach(kubeconfig: kubeconfig)
@@ -94,7 +90,7 @@ crds =
   ).body
 
 crd =
-  crds 
+  crds
   |> YamlElixir.read_all_from_string!()
   |> Enum.find(& &1["spec"]["names"]["kind"] == "Certificate")
 

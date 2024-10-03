@@ -96,8 +96,6 @@ defmodule Kubereq do
       (e.g. `status` or `scale`)
   """
 
-  require Logger
-
   alias Kubereq.Step
 
   @type wait_until_callback :: (map() | :deleted -> boolean | {:error, any})
@@ -151,8 +149,9 @@ defmodule Kubereq do
 
   ### Example
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.create(req, resource)
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.create(resource)
       {:ok, %Req.Response{status: 201, body: %{...}}}
   """
   @spec create(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
@@ -177,8 +176,9 @@ defmodule Kubereq do
 
   ### Example
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.get(req, "default", "foo")
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.get("default", "foo")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec get(
@@ -188,6 +188,10 @@ defmodule Kubereq do
           opts :: Keyword.t() | nil
         ) ::
           response()
+  def get(req, namespace \\ nil, name, opts \\ [])
+
+  def get(req, name, opts, []) when is_list(opts), do: get(req, nil, name, opts)
+
   def get(req, namespace, name, opts) do
     options =
       Keyword.merge(opts, operation: :get, path_params: [namespace: namespace, name: name])
@@ -195,20 +199,21 @@ defmodule Kubereq do
     Req.request(req, options)
   end
 
-  def get(req, name), do: get(req, nil, name, [])
-  def get(req, namespace, name) when is_binary(name), do: get(req, namespace, name, [])
-  def get(req, name, opts) when is_list(opts), do: get(req, nil, name, opts)
-
   @doc """
   Get a resource list.
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.list(req, "default")
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.list("default")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
+  def list(req, namespace \\ nil, opts \\ [])
+
+  def list(req, opts, []) when is_list(opts), do: list(req, nil, opts)
+
   def list(req, namespace, opts) do
     options =
       Keyword.merge(opts,
@@ -221,20 +226,14 @@ defmodule Kubereq do
     Req.request(req, options)
   end
 
-  def list(req), do: list(req, nil, [])
-
-  def list(req, namespace) when is_binary(namespace) or is_nil(namespace),
-    do: list(req, namespace, [])
-
-  def list(req, opts) when is_list(opts), do: list(req, nil, opts)
-
   @doc """
   Deletes the `resource` or its `subresource` from the cluster.
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.delete(req, "default", "foo")
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.delete("default", "foo")
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec delete(
@@ -244,6 +243,10 @@ defmodule Kubereq do
           opts :: Keyword.t()
         ) ::
           response()
+  def delete(req, namespace \\ nil, name, opts \\ [])
+
+  def delete(req, name, opts, []) when is_list(opts), do: delete(req, nil, name, opts)
+
   def delete(req, namespace, name, opts) do
     options =
       Keyword.merge(opts, operation: :delete, path_params: [namespace: namespace, name: name])
@@ -251,40 +254,35 @@ defmodule Kubereq do
     Req.request(req, options)
   end
 
-  def delete(req, name), do: delete(req, nil, name, [])
-  def delete(req, namespace, name) when is_binary(name), do: delete(req, namespace, name, [])
-  def delete(req, name, opts) when is_list(opts), do: delete(req, nil, name, opts)
-
   @doc """
   Deletes all resources in the given namespace.
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.delete_all(req, "default", label_selectors: [{"app", "my-app"}])
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.delete_all("default", label_selectors: [{"app", "my-app"}])
       {:ok, %Req.Response{status: 200, body: %{...}}}
 
   """
   @spec delete_all(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
+  def delete_all(req, namespace \\ nil, opts \\ [])
+
+  def delete_all(req, opts, []) when is_list(opts), do: delete_all(req, nil, opts)
+
   def delete_all(req, namespace, opts) do
     options = Keyword.merge(opts, operation: :delete_all, path_params: [namespace: namespace])
     Req.request(req, options)
   end
-
-  def delete_all(req), do: delete_all(req, nil, [])
-
-  def delete_all(req, namespace) when is_binary(namespace) or is_nil(namespace),
-    do: delete_all(req, namespace, [])
-
-  def delete_all(req, opts) when is_list(opts), do: delete_all(req, nil, opts)
 
   @doc """
   Updates the given `resource`.
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.update(req, resource)
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.update(resource)
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec update(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
@@ -310,8 +308,9 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.apply(req, resource)
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.apply(resource)
       {:ok, %Req.Response{status: 200, body: %{...}}}
   """
   @spec apply(
@@ -321,6 +320,12 @@ defmodule Kubereq do
           force :: boolean(),
           opts :: Keyword.t()
         ) :: response()
+  def apply(req, resource, field_manager \\ "Elixir", force \\ true, opts \\ [])
+
+  def apply(req, resource, opts, _, _) when is_list(opts) do
+    apply(req, resource, "Elixir", true, opts)
+  end
+
   def apply(req, resource, field_manager, force, opts) do
     options =
       Keyword.merge(opts,
@@ -336,20 +341,15 @@ defmodule Kubereq do
     Req.request(req, options)
   end
 
-  def apply(req, resource, opts \\ []), do: apply(req, resource, "Elixir", true, opts)
-
-  def apply(req, resource, field_manager, force) do
-    apply(req, resource, field_manager, force, [])
-  end
-
   @doc """
   Patches the resource `name`in `namespace` or its `subresource` using the given
   `json_patch`.
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.json_patch(req, %{...}, "default", "foo")
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.json_patch(%{...}, "default", "foo")
       {:ok, %Req.Response{...}
   """
   @spec json_patch(
@@ -359,6 +359,12 @@ defmodule Kubereq do
           name :: String.t(),
           opts :: Keyword.t()
         ) :: response()
+  def json_patch(req, json_patch, namespace \\ nil, name, opts \\ [])
+
+  def json_patch(req, json_patch, name, opts, []) when is_list(opts) do
+    json_patch(req, json_patch, nil, name, opts)
+  end
+
   def json_patch(req, json_patch, namespace, name, opts) do
     options =
       Keyword.merge(opts,
@@ -370,24 +376,15 @@ defmodule Kubereq do
     Req.request(req, options)
   end
 
-  def json_patch(req, json_patch, name), do: json_patch(req, json_patch, nil, name, [])
-
-  def json_patch(req, json_patch, namespace, name) when is_binary(name) do
-    json_patch(req, json_patch, namespace, name, [])
-  end
-
-  def json_patch(req, json_patch, name, opts) when is_list(opts) do
-    json_patch(req, json_patch, nil, name, opts)
-  end
-
   @doc """
   Patches the resource `name`in `namespace` or its `subresource` using the given
   `merge_patch`.
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> Kubereq.merge_patch(req, %{...}, "default", "foo")
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.merge_patch(%{...}, "default", "foo")
       {:ok, %Req.Response{...}
 
   """
@@ -398,6 +395,12 @@ defmodule Kubereq do
           name :: String.t(),
           opts :: Keyword.t()
         ) :: response()
+  def merge_patch(req, merge_patch, namespace \\ nil, name, opts \\ [])
+
+  def merge_patch(req, merge_patch, name, opts, []) when is_list(opts) do
+    merge_patch(req, merge_patch, nil, name, opts)
+  end
+
   def merge_patch(req, merge_patch, namespace, name, opts) do
     options =
       Keyword.merge(opts,
@@ -407,16 +410,6 @@ defmodule Kubereq do
       )
 
     Req.request(req, options)
-  end
-
-  def merge_patch(req, merge_patch, name), do: merge_patch(req, merge_patch, nil, name, [])
-
-  def merge_patch(req, merge_patch, namespace, name) when is_binary(name) do
-    merge_patch(req, merge_patch, namespace, name, [])
-  end
-
-  def merge_patch(req, merge_patch, name, opts) when is_list(opts) do
-    merge_patch(req, merge_patch, nil, name, opts)
   end
 
   @doc """
@@ -436,6 +429,12 @@ defmodule Kubereq do
           callback :: wait_until_callback(),
           opts :: Keyword.t()
         ) :: wait_until_response()
+  def wait_until(req, namespace \\ nil, name, callback, opts \\ [])
+
+  def wait_until(req, name, callback, opts, []) when is_list(opts) do
+    wait_until(req, nil, name, callback, opts)
+  end
+
   def wait_until(req, namespace, name, callback, opts) do
     {timeout, opts} = Keyword.pop(opts, :timeout, 10_000)
     ref = make_ref()
@@ -465,16 +464,6 @@ defmodule Kubereq do
     end
   end
 
-  def wait_until(req, name, callback), do: wait_until(req, nil, name, callback, [])
-
-  def wait_until(req, namespace, name, callback) when is_function(callback) do
-    wait_until(req, namespace, name, callback, [])
-  end
-
-  def wait_until(req, name, callback, opts) when is_list(opts) do
-    wait_until(req, nil, name, callback, opts)
-  end
-
   defp wait_event_loop(ref, callback) do
     receive do
       {^ref, %{"type" => "DELETED"}} ->
@@ -495,16 +484,19 @@ defmodule Kubereq do
 
   @doc """
   Watch events of all resources in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
-      iex> Kubereq.watch(req, "default", [])
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.watch("default")
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
-  In order to watch events in all namespaces, pass `nil` as namespace:
+  Omit the second argument in order to watch events in all namespaces:
 
-      iex> Kubereq.watch(req, nil, [])
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.watch()
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
   ### Options
@@ -520,6 +512,12 @@ defmodule Kubereq do
           opts :: keyword()
         ) ::
           watch_response()
+  def watch(req, namespace \\ nil, opts \\ [])
+
+  def watch(req, opts, []) when is_list(opts) do
+    watch(req, nil, opts)
+  end
+
   def watch(req, namespace, opts) do
     {resource_version, opts} = Keyword.pop(opts, :resource_version)
     {steam_to, opts} = Keyword.pop(opts, :stream_to)
@@ -539,25 +537,22 @@ defmodule Kubereq do
     end
   end
 
-  def watch(req), do: watch(req, nil, [])
-
-  def watch(req, namespace) when is_binary(namespace) or is_nil(namespace),
-    do: watch(req, namespace, [])
-
-  def watch(req, opts) when is_list(opts), do: watch(req, nil, opts)
-
   @doc """
   Watch events of a single resources `name`in `namespace`.
   The `req` struct should have been created using `Kubereq.new/1`.
 
   ### Examples
 
-      iex> Kubereq.watch_single(req, "default", [])
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.watch_single("default")
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
-  In order to watch events in all namespaces, pass `nil` as namespace:
+  Omit the second argument in order to watch events in all namespaces:
 
-      iex> Kubereq.watch_single(req, nil, [])
+      iex> Req.new()
+      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...> |> Kubereq.watch_single()
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
   ### Options
@@ -579,18 +574,16 @@ defmodule Kubereq do
           name :: String.t(),
           opts :: keyword()
         ) :: watch_response()
+  def watch_single(req, namespace \\ nil, name, opts \\ [])
+
+  def watch_single(req, name, opts, []) when is_list(opts) do
+    watch_single(req, nil, name, opts)
+  end
+
   def watch_single(req, namespace, name, opts) do
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
     watch(req, namespace, opts)
   end
-
-  def watch_single(req, name), do: watch_single(req, nil, name, [])
-
-  def watch_single(req, namespace, name) when is_binary(namespace) or is_nil(namespace) do
-    watch_single(req, namespace, name, [])
-  end
-
-  def watch_single(req, name, opts) when is_list(opts), do: watch_single(req, nil, name, opts)
 
   @spec watch_create_task(
           (-> do_watch_response()),
