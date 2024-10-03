@@ -21,14 +21,26 @@ defmodule Kubereq.Utils do
   def cert_from_base64(cert_data_b64) do
     cert_data_b64
     |> Base.decode64!()
-    |> :public_key.pem_decode()
-    |> Enum.find_value(fn {:Certificate, data, _} -> {:ok, data} end)
+    |> cert_from_pem()
   end
 
   @spec key_from_base64(binary()) :: {:ok, {atom(), binary()}}
   def key_from_base64(key_data_b64) do
     key_data_b64
     |> Base.decode64!()
+    |> key_from_pem()
+  end
+
+  @spec cert_from_pem(binary()) :: {:ok, binary()}
+  def cert_from_pem(cert_data) do
+    cert_data
+    |> :public_key.pem_decode()
+    |> Enum.find_value(fn {:Certificate, data, _} -> {:ok, data} end)
+  end
+
+  @spec key_from_pem(binary()) :: {:ok, {atom(), binary()}}
+  def key_from_pem(cert_data) do
+    cert_data
     |> :public_key.pem_decode()
     |> Enum.find_value(fn
       {type, data, _} when type in @private_key_atoms -> {:ok, {type, data}}

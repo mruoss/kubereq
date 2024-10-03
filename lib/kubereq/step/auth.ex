@@ -72,8 +72,8 @@ defmodule Kubereq.Step.Auth do
   defp aggregate_req(req, status)
        when is_map_key(status, "clientCertificateData") and is_map_key(status, "clientKeyData") do
     %{"clientCertificateData" => cert_data_b64, "clientKeyData" => key_data_b64} = status
-    {:ok, cert} = Kubereq.Utils.cert_from_base64(cert_data_b64)
-    {:ok, key} = Kubereq.Utils.key_from_base64(key_data_b64)
+    {:ok, cert} = Kubereq.Utils.cert_from_pem(cert_data_b64)
+    {:ok, key} = Kubereq.Utils.key_from_pem(key_data_b64)
 
     req
     |> Kubereq.Utils.add_ssl_opts(cert: cert, key: key)

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.2.1 - 2024-10-03
+
+### Fixed
+
+- Exec auth wrongly assumes cert data to be base64 encoded [#33](https://github.com/mruoss/kubereq/issues/33), [#34](https://github.com/mruoss/kubereq/pull/34)
+
 ## 0.2.0 - 2024-09-20
 
 ### Changed
