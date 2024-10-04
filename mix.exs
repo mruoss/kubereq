@@ -103,7 +103,6 @@ defmodule Kubereq.MixProject do
         "Sponsor" => "https://github.com/sponsors/mruoss"
       },
       files: [
-        "build",
         "lib",
         "mix.exs",
         "README.md",
