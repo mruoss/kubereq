@@ -35,6 +35,8 @@ release =
   |> download.(headers)
   |> json_decode.()
 
+dbg(release)
+
 tag =
   ~c'https://api.github.com/repos/kubernetes/kubernetes/git/refs/tags/#{release["tag_name"]}'
   |> download.(headers)
