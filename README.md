@@ -23,7 +23,7 @@ The package can be installed by adding `kubereq` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:kubereq, "~> 0.2.0"}
+    {:kubereq, "~> 0.3.0"}
   ]
 end
 ```

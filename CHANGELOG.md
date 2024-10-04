@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.3.0 - 2024-10-04
+
 ### ⚠️ Breaking ⚠️
 
 This release comes with a refactored API of the `kubereq` library and will not
