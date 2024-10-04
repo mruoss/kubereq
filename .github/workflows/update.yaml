@@ -1,0 +1,47 @@
+name: Update API Spec
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          submodules: true
+
+      - name: Setup elixir
+        id: beam
+        uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+          install-rebar: true
+          install-hex: true
+
+      - name: Generate API Spec
+        run: elixir build_lib/generate_api_spec.exs
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: api-spec-update
+          base: main
+          delete-branch: true
+          title: "Update on API Spec"
+          assignees: mruoss
+          body: |
+            There's an update on the Kubernetes API Spec.
+          draft: false
+          # labels: |
+          #   release

@@ -1,4 +1,8 @@
 defmodule Kubereq.Error.StepError do
+  @moduledoc """
+  Indicates an error during the Req steps processing.
+  """
+
   @enforce_keys [:message, :code]
   defexception [:message, :code, upstream: nil]
 
@@ -6,7 +10,9 @@ defmodule Kubereq.Error.StepError do
 
   @errors %{
     kubeconfig_not_loaded:
-      "The KubeConfig is not loaded. Make sure to add `:kubeconf` option to the `Req.Request`"
+      "The KubeConfig is not loaded. Make sure to add `:kubeconf` option to the `Req.Request`",
+    resource_not_found: "The requested resource does not exist on the cluster",
+    operation_missing: "The :operation option is missing on the request."
   }
 
   @spec new(atom(), Exception.t() | nil) :: t()

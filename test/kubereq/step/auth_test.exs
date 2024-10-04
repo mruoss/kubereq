@@ -1,13 +1,11 @@
 defmodule Kubereq.Step.AuthTest do
   use ExUnit.Case, async: true
 
-  alias Kubereq.Step.Auth, as: MUT
-
-  test "raises if no kubeconfig" do
-    {_req, error} = MUT.call(Req.new())
-    assert is_struct(error, Kubereq.Error.StepError)
-    assert error.code == :kubeconfig_not_loaded
+  setup do
+    Req.Test.verify_on_exit!()
   end
+
+  alias Kubereq.Step.Auth, as: MUT
 
   test "Sets certfile and keyfile transport options" do
     kubeconfig =
@@ -15,7 +13,7 @@ defmodule Kubereq.Step.AuthTest do
         current_user: %{"client-certificate" => "/path/to/cert", "client-key" => "/path/to/key"}
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
 
     assert "/path/to/cert" == get_in(req.options, ~w"connect_options transport_opts certfile"a)
     assert "/path/to/key" == get_in(req.options, ~w"connect_options transport_opts keyfile"a)
@@ -32,7 +30,7 @@ defmodule Kubereq.Step.AuthTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
 
     assert not is_nil(get_in(req.options, ~w"connect_options transport_opts cert"a))
     assert not is_nil(get_in(req.options, ~w"connect_options transport_opts key"a))
@@ -40,90 +38,73 @@ defmodule Kubereq.Step.AuthTest do
 
   test "Sets bearer token auth option" do
     kubeconfig =
-      Kubereq.Kubeconfig.new!(
-        current_cluster: %{"server" => "https://example.com"},
-        current_user: %{"token" => "foo-token"}
-      )
+      Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
+      |> struct!(current_user: %{"token" => "foo-token"})
 
-    kubeconfig
-    |> Kubereq.new("unused")
-    |> MUT.call()
-    |> Req.merge(
-      plug: fn conn ->
-        assert {"authorization", "Bearer foo-token"} in conn.req_headers
-        Req.Test.json(conn, %{})
-      end
-    )
-    |> Req.request()
+    Req.Test.expect(Kubereq.Stub, fn conn ->
+      assert {"authorization", "Bearer foo-token"} in conn.req_headers
+      Req.Test.json(conn, %{})
+    end)
+
+    {:ok, _} =
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
+      |> Req.request(operation: :get, api_version: "v1", kind: "ConfigMap")
   end
 
   test "Sets bearer token auth option to token from file" do
     kubeconfig =
-      Kubereq.Kubeconfig.new!(
-        current_cluster: %{"server" => "https://example.com"},
-        current_user: %{"tokenFile" => "test/support/token"}
-      )
+      Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
+      |> struct!(current_user: %{"tokenFile" => "test/support/token"})
 
-    kubeconfig
-    |> Kubereq.new("unused")
-    |> MUT.call()
-    |> Req.merge(
-      plug: fn conn ->
-        assert {"authorization", "Bearer bar-token"} in conn.req_headers
-        Req.Test.json(conn, %{})
-      end
-    )
-    |> Req.request()
+    Req.Test.expect(Kubereq.Stub, fn conn ->
+      assert {"authorization", "Bearer bar-token"} in conn.req_headers
+      Req.Test.json(conn, %{})
+    end)
+
+    {:ok, _} =
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
+      |> Req.request(operation: :get, api_version: "v1", kind: "ConfigMap")
   end
 
   test "Sets basic auth option " do
     kubeconfig =
-      Kubereq.Kubeconfig.new!(
-        current_cluster: %{"server" => "https://example.com"},
-        current_user: %{"username" => "foo", "password" => "bar"}
-      )
+      Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
+      |> struct!(current_user: %{"username" => "foo", "password" => "bar"})
 
-    kubeconfig
-    |> Kubereq.new("unused")
-    |> MUT.call()
-    |> Req.merge(
-      plug: fn conn ->
-        assert {"authorization", "Basic Zm9vOmJhcg=="} in conn.req_headers
-        Req.Test.json(conn, %{})
-      end
-    )
-    |> Req.request()
+    Req.Test.expect(Kubereq.Stub, fn conn ->
+      assert {"authorization", "Basic Zm9vOmJhcg=="} in conn.req_headers
+      Req.Test.json(conn, %{})
+    end)
+
+    {:ok, _} =
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
+      |> Req.request(operation: :get, api_version: "v1", kind: "ConfigMap")
   end
 
   test "Executes the command and sets auth and transport options" do
-    Kubereq.Application.start(nil, nil)
-
     exec_config = %{
       "command" => "env",
       "args" => ["bash", "-c", "cat $MYCONFIG"],
       "env" => [%{"name" => "MYCONFIG", "value" => "test/support/exec_credentials.yaml"}]
     }
 
+    Kubereq.Application.start(nil, nil)
+
     kubeconfig =
-      Kubereq.Kubeconfig.new!(
-        current_cluster: %{"server" => "https://example.com"},
-        current_user: %{"exec" => exec_config}
-      )
+      Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
+      |> struct!(current_user: %{"exec" => exec_config})
 
-    req =
-      kubeconfig
-      |> Kubereq.new("unused")
-      |> MUT.call()
-      |> Req.merge(
-        plug: fn conn ->
-          assert {"authorization", "Bearer foo-token"} in conn.req_headers
-          Req.Test.json(conn, %{})
-        end
-      )
+    Req.Test.expect(Kubereq.Stub, fn conn ->
+      assert {"authorization", "Bearer foo-token"} in conn.req_headers
+      Req.Test.json(conn, %{})
+    end)
 
-    assert not is_nil(get_in(req.options, ~w"connect_options transport_opts cert"a))
-    assert not is_nil(get_in(req.options, ~w"connect_options transport_opts key"a))
-
-    Req.request(req)
+    {:ok, _} =
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
+      |> Req.request(operation: :get, api_version: "v1", kind: "ConfigMap")
   end
 end

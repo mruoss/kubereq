@@ -22,7 +22,7 @@ defmodule Kubereq.Kubeconfig.Default do
 
   use Pluggable.StepBuilder
 
-  step(Kubereq.Kubeconfig.ENV)
-  step(Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true)
-  step(Kubereq.Kubeconfig.ServiceAccount)
+  step Kubereq.Kubeconfig.ENV
+  step Kubereq.Kubeconfig.File, path: "~/.kube/config"
+  step Kubereq.Kubeconfig.ServiceAccount
 end

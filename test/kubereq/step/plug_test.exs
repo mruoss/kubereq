@@ -5,12 +5,6 @@ defmodule Kubereq.Step.PlugTest do
 
   alias Kubereq.Kubeconfig
 
-  test "raises if no kubeconfig" do
-    {_req, error} = MUT.call(Req.new())
-    assert is_struct(error, Kubereq.Error.StepError)
-    assert error.code == :kubeconfig_not_loaded
-  end
-
   test "sets a single plug on the req" do
     Req.Test.stub(Kubereq.Step.PlugTest, fn conn ->
       assert conn.host == "default"
@@ -24,10 +18,15 @@ defmodule Kubereq.Step.PlugTest do
       )
 
     {:ok, resp} =
-      kubeconfig
-      |> Kubereq.new("unused")
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
       |> MUT.call()
-      |> Req.request()
+      |> Req.request(
+        api_version: "v1",
+        kind: "ConfigMap",
+        operation: :get,
+        path_params: [name: "foo"]
+      )
 
     assert resp.body == "Plug called"
   end
@@ -49,26 +48,32 @@ defmodule Kubereq.Step.PlugTest do
     }
 
     kubeconfig =
-      Kubeconfig.Stub.call(
-        %Kubeconfig{},
-        Kubeconfig.Stub.init(plugs: plugs)
-      )
+      Kubeconfig.Stub.call(%Kubeconfig{}, Kubeconfig.Stub.init(plugs: plugs))
+      |> Kubeconfig.set_current_context("foo")
 
     {:ok, resp} =
-      kubeconfig
-      |> Kubeconfig.set_current_context("foo")
-      |> Kubereq.new("unused")
+      Req.new()
+      |> Kubereq.attach(kubeconfig: kubeconfig)
       |> MUT.call()
-      |> Req.request()
+      |> Req.request(
+        api_version: "v1",
+        kind: "ConfigMap",
+        operation: :get,
+        path_params: [name: "foo"]
+      )
 
     assert resp.body == "Foo called"
 
     {:ok, resp} =
-      kubeconfig
-      |> Kubeconfig.set_current_context("bar")
-      |> Kubereq.new("unused")
+      Req.new()
+      |> Kubereq.attach(kubeconfig: Kubeconfig.set_current_context(kubeconfig, "bar"))
       |> MUT.call()
-      |> Req.request()
+      |> Req.request(
+        api_version: "v1",
+        kind: "ConfigMap",
+        operation: :get,
+        path_params: [name: "foo"]
+      )
 
     assert resp.body == "Bar called"
   end

@@ -1,20 +1,9 @@
 defmodule Kubereq.Step.Impersonate do
-  @moduledoc """
-  Req step to derive impersonation headers from the Kubeconfig.
-  """
+  @moduledoc false
 
   alias Kubereq.Error.StepError
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
-    Req.Request.prepend_request_steps(req, kubereq_impersonate: &call/1)
-  end
-
-  @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(req) when not is_map_key(req.options, :kubeconfig) do
-    {req, StepError.new(:kubeconfig_not_loaded)}
-  end
-
+  @spec call(req :: Req.Request.t()) :: Req.Request.t() | {Req.Request.t(), StepError.t()}
   def call(req) do
     impersonate(req, req.options.kubeconfig.current_user)
   end

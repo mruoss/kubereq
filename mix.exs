@@ -55,12 +55,26 @@ defmodule Kubereq.MixProject do
 
   defp docs do
     [
-      main: "readme",
+      main: "Kubereq",
       source_ref: "v#{@version}",
       source_url: @source_url,
       extras: [
         "README.md",
         "CHANGELOG.md"
+      ],
+      groups_for_modules: [
+        "Kubeconfig Loading": [
+          Kubereq.Kubeconfig,
+          Kubereq.Kubeconfig.Default,
+          Kubereq.Kubeconfig.ENV,
+          Kubereq.Kubeconfig.File,
+          Kubereq.Kubeconfig.ServiceAccount,
+          Kubereq.Kubeconfig.Stub
+        ],
+        Selectors: [
+          Kubereq.Step.FieldSelector,
+          Kubereq.Step.LabelSelector
+        ]
       ]
     ]
   end
@@ -88,7 +102,15 @@ defmodule Kubereq.MixProject do
         "Changelog" => "https://hexdocs.pm/#{@app}/changelog.html",
         "Sponsor" => "https://github.com/sponsors/mruoss"
       },
-      files: ["lib", "mix.exs", "README.md", "LICENSE.md", "CHANGELOG.md", ".formatter.exs"]
+      files: [
+        "build",
+        "lib",
+        "mix.exs",
+        "README.md",
+        "LICENSE.md",
+        "CHANGELOG.md",
+        ".formatter.exs"
+      ]
     ]
   end
 

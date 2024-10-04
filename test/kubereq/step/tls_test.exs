@@ -3,15 +3,9 @@ defmodule Kubereq.Step.TLSTest do
 
   alias Kubereq.Step.TLS, as: MUT
 
-  test "raises if no kubeconfig" do
-    {_req, error} = MUT.call(Req.new())
-    assert is_struct(error, Kubereq.Error.StepError)
-    assert error.code == :kubeconfig_not_loaded
-  end
-
   test "sets the verify option" do
     kubeconfig = Kubereq.Kubeconfig.new!(current_cluster: %{"server" => "https://example.com"})
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
     assert :verify_peer === get_in(req.options, ~w"connect_options transport_opts verify"a)
 
     kubeconfig =
@@ -19,7 +13,7 @@ defmodule Kubereq.Step.TLSTest do
         current_cluster: %{"server" => "https://example.com", "insecure-skip-tls-verify" => true}
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
     assert :verify_none === get_in(req.options, ~w"connect_options transport_opts verify"a)
   end
 
@@ -32,7 +26,7 @@ defmodule Kubereq.Step.TLSTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
 
     assert ~c"/path/to/ca.crt" ===
              get_in(req.options, ~w"connect_options transport_opts cacertfile"a)
@@ -48,7 +42,7 @@ defmodule Kubereq.Step.TLSTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
 
     cacerts = get_in(req.options, ~w"connect_options transport_opts cacerts"a)
     assert is_list(cacerts)
@@ -64,7 +58,7 @@ defmodule Kubereq.Step.TLSTest do
         }
       )
 
-    req = kubeconfig |> Kubereq.new("unused") |> MUT.call()
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig) |> MUT.call()
 
     assert ~c"localhost" ===
              get_in(req.options, ~w"connect_options transport_opts server_name_indication"a)

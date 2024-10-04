@@ -1,6 +1,27 @@
 defmodule Kubereq.Kubeconfig do
   @moduledoc """
   This is the `Pluggable.Token` for the pipeline loading the Kubernetes config.
+  The Kubeconfig represents the configuration to establish a connection to
+  the Kubernetes cluster. It contains informations like endpoint, certificates,
+  user authentication details etc.
+
+  In most cases you can just rely on `Kubereq.Kubeconfig.Default` to load
+  the Kubeconfig from well-known places.
+
+  Sometimes you only want to allow to load the Kubeconfig from a specific
+  YAML file or rely on an ENV variable pointing to that file. Check out
+  the `Kubereq.Kubeconfig.*` modules.
+
+  You can also chain these modules to build your own Kubeconfig loader pipeline.
+
+  ```
+  defmodule MyKubeconfLoader do
+    use Pluggable.StepBuilder
+
+    step Kubereq.Kubeconfig.ENV
+    step Kubereq.Kubeconfig.File, path: "/path/to/kubeconfig.yaml"
+  end
+  ```
   """
 
   alias Kubereq.Access
@@ -92,7 +113,7 @@ defmodule Kubereq.Kubeconfig do
 
       Kubereq.Kubeconfig.load([
         Kubereq.Kubeconfig.ENV,
-        {Kubereq.Kubeconfig.File, path: ".kube/config", relative_to_home?: true},
+        {Kubereq.Kubeconfig.File, path: "~/.kube/config"},
         Kubereq.Kubeconfig.ServiceAccount
       ])
   """

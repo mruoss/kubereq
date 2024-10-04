@@ -52,13 +52,6 @@ defmodule Kubereq.Step.LabelSelector do
 
   """
 
-  @spec attach(Req.Request.t()) :: Req.Request.t()
-  def attach(req) do
-    req
-    |> Req.Request.register_options([:label_selectors])
-    |> Req.Request.prepend_request_steps(label_selectors: &call/1)
-  end
-
   def call(%Req.Request{options: %{label_selectors: nil}} = req), do: req
 
   def call(%Req.Request{options: %{label_selectors: label_selectors}} = req) do
