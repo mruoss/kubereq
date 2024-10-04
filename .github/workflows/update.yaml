@@ -31,6 +31,8 @@ jobs:
 
       - name: Generate API Spec
         run: elixir build_lib/generate_api_spec.exs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
