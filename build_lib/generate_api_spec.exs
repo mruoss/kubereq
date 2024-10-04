@@ -35,8 +35,6 @@ release =
   |> download.(headers)
   |> json_decode.()
 
-dbg(release)
-
 tag =
   ~c'https://api.github.com/repos/kubernetes/kubernetes/git/refs/tags/#{release["tag_name"]}'
   |> download.(headers)
@@ -44,6 +42,7 @@ tag =
 
 archive_dir = "kubernetes-kubernetes-" <> String.slice(tag["object"]["sha"], 0, 7)
 
+File.mkdir_p!(Path.dirname(archive_path))
 if not File.exists?(archive_path) do
   {:ok, :saved_to_file} =
     :httpc.request(:get, {release["tarball_url"], headers}, [], stream: archive_path)
