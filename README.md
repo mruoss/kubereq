@@ -32,7 +32,7 @@ The docs can be found at <https://hexdocs.pm/kubereq>.
 
 ## Usage
 
-This library can used with plan `Req` but the function in this module
+This library can be used with plain `Req` but the functions in this module
 provide an easier API to people used to `kubectl` and friends.
 
 ### Plain Req
@@ -73,7 +73,7 @@ Req.request!(sa_req,  operation: :get, path_params: [namespace: "default", name:
 Req.request!(sa_req,  operation: :list, path_params: [namespace: "default"])
 ```
 
-### Kubectl API
+### Kubereq API
 
 While this library can attach to any `Req` struct, it is sometimes easier
 to prepare `Req` for a specific resource and then use the functions
