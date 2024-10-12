@@ -99,4 +99,12 @@ defmodule Kubereq.Step.Operation do
       headers: [{"Content-Type", "application/merge-patch+json"}]
     ]
   end
+
+  defp operation(:connect, request_path, subresource) do
+    [
+      url: "#{request_path}/#{subresource}",
+      method: :post,
+      adapter: &Kubereq.Websocket.Adapter.run/1
+    ]
+  end
 end

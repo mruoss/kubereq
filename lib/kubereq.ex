@@ -639,4 +639,144 @@ defmodule Kubereq do
       {:ok, stream}
     end
   end
+
+  @doc """
+
+  Opens a websocket to the given Pod and streams logs from it.
+
+  ## Options
+
+  * `:params` - Map defining the query parameteres added to the request to the
+    `pods/log` subresource. The `log` subresource supports the following
+    paremeters:
+
+    * `container` -  (optional) Specifies the container for which to return
+      logs. If omitted, returns logs for the first container in the pod.
+    * `follow` - (optional) If set to true, the request will stay open and
+      continue to return new log entries as they are generated. Default is
+      false.
+    * `previous` - (optional) If true, return logs from previous terminated
+      containers. Default is false.
+    * `sinceSeconds` - (optional) Returns logs newer than a relative duration in
+      seconds. Conflicts with sinceTime.
+    * `sinceTime` - (optional) Returns logs after a specific date (RFC3339
+      format). Conflicts with sinceSeconds.
+    * `timestamps` - (optional) If true, add an RFC3339 timestamp at the
+      beginning of every line. Default is false.
+    * `tailLines` - (optional) Specifies the number of lines from the end of the
+      logs to show. If not specified, logs are shown from the creation of the
+      container or sinceSeconds/sinceTime.
+    * `limitBytes` - (optional) The maximum number of bytes to return from the
+      server. If not specified, no limit is imposed.
+    * `insecureSkipTLSVerifyBackend` - (optional) If true, bypasses certificate
+      verification for the kubelet's HTTPS endpoint. This is useful for clusters
+      with self-signed certificates. Default is false.
+    * `pretty` - (optional) If true, formats the output in a more readable
+      format. This is typically used for debugging and not recommended for
+      programmatic access.
+    * `prefix` - (optional) [Note: Availability may depend on Kubernetes
+      version] If true, adds the container name as a prefix to each line. Useful
+      when requesting logs for multiple containers.
+  """
+  @spec log(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          stream_to :: {Process.dest(), reference()} | Process.dest(),
+          opts :: Keyword.t() | nil
+        ) ::
+          response()
+  def log(req, namespace \\ nil, name, stream_to, opts \\ [])
+
+  def log(req, name, stream_to, opts, []) when is_list(opts),
+    do: log(req, nil, name, stream_to, opts)
+
+  def log(req, namespace, name, stream_to, opts) do
+    options =
+      Keyword.merge(opts,
+        operation: :connect,
+        path_params: [namespace: namespace, name: name],
+        into: stream_to,
+        subresource: "log"
+      )
+
+    Req.request(req, options)
+  end
+
+  @doc """
+
+  Opens a websocket to the given Pod and executes a command on it. Can be used
+  to open a shell.
+
+  ## Examples
+
+      iex> ref = make_ref()
+      ...> res =
+      ...>   Req.new()
+      ...>   |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...>   |> Kubereq.exec("default", "my-pod", {self(), ref},
+              params: %{
+                "command" => "/bin/bash"
+                "tty" => true,
+                "stdin" => true,
+                "stdout" => true,
+                "stderr" => true,
+              }
+
+  Messages are sent to the passed Process with the reference included:
+
+      iex> receive(do: ({^ref, message} -> IO.inspect(message)))
+
+  The `body` of the `Req.Response` is a struct. If `tty` is set to true and
+  `command` is a shell, you can pass to
+  `Kubereq.Websocket.Response.send_message/3` in order to send instructions
+  through the websocket to the shell.
+
+      ...> res.body.()
+
+  ## Options
+
+  * `:params` - Map defining the query parameteres added to the request to the
+    `pods/exec` subresource. The `exec` subresource supports the following
+    paremeters:
+
+    * `container` (optional) - Specifies the container in the pod to execute the
+      command. If omitted, the first container in the pod will be chosen.
+    * `command` (optional) - The command to execute inside the container. This
+      parameter can be specified multiple times to represent a command with
+      multiple arguments. If omitted, the container's default command will be
+      used.
+    * `stdin` (optional) - If true, pass stdin to the container. Default is
+      false.
+    * `stdout` (optional) - If true, return stdout from the container. Default
+      is false.
+    * `stderr` (optional) - If true, return stderr from the container. Default
+      is false.
+    * `tty` (optional) - If true, allocate a pseudo-TTY for the container.
+      Default is false.
+  """
+  @spec exec(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          stream_to :: {Process.dest(), reference()} | Process.dest(),
+          opts :: Keyword.t() | nil
+        ) ::
+          response()
+  def exec(req, namespace \\ nil, name, stream_to, opts \\ [])
+
+  def exec(req, name, stream_to, opts, []) when is_list(opts),
+    do: exec(req, nil, name, stream_to, opts)
+
+  def exec(req, namespace, name, stream_to, opts) do
+    options =
+      Keyword.merge(opts,
+        operation: :connect,
+        path_params: [namespace: namespace, name: name],
+        into: stream_to,
+        subresource: "exec"
+      )
+
+    Req.request(req, options)
+  end
 end
