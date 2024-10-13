@@ -1,6 +1,18 @@
 defmodule Kubereq.Websocket.Response do
+  @moduledoc """
+  Represents a response of a websocket request.
+  """
+  alias Kubereq.Websocket.Adapter
+
+  @type t :: %__MODULE__{registry_key: reference()}
+
   defstruct [:registry_key]
 
+  @spec send_message(
+          response :: t(),
+          message :: Adapter.outgoing_message(),
+          timeout :: non_neg_integer()
+        ) :: :ok | {:error, term()}
   def send_message(_response, message, timeout \\ 5_000)
 
   def send_message(_response, message, timeout) when timeout <= 0 do

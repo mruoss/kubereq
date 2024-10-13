@@ -1,9 +1,15 @@
 defmodule Kubereq.Websocket.Adapter do
+  @moduledoc false
+
   use GenServer, restart: :transient
 
   alias Kubereq.Websocket.Response
 
   require Mint.HTTP
+
+  @typep start_args ::
+           {URI.t(), list(), {Process.dest(), reference()} | Process.dest(),
+            conn_opts :: Keyword.t(), registry_key :: reference()}
 
   @type incoming_frame() :: {:binary, binary} | {:close, any, any}
   @type incoming_message() ::
@@ -27,6 +33,8 @@ defmodule Kubereq.Websocket.Adapter do
 
   defstruct [:mint, :websocket, :ref, :into]
 
+  @spec run(Req.Request.t()) ::
+          {Req.Request.t(), Req.Response.t()} | {Req.Request.t(), Mint.WebSocket.error()}
   def run(%{into: _stream_to} = req) do
     conn_opts =
       req.options.connect_options
@@ -59,11 +67,14 @@ defmodule Kubereq.Websocket.Adapter do
 
         {req, resp}
 
-      {:error, error} ->
+      {:error, error} when is_exception(error) ->
         {req, error}
 
-      {:error, _mint, error} ->
-        {req, error}
+      other ->
+        {req,
+         %RuntimeError{
+           message: "Failed to start the Websocket. start_child() returned #{inspect(other)}."
+         }}
     end
   end
 
@@ -75,9 +86,8 @@ defmodule Kubereq.Websocket.Adapter do
      }}
   end
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args)
-  end
+  @spec start_link(start_args()) :: GenServer.on_start()
+  def start_link(args), do: GenServer.start_link(__MODULE__, args)
 
   @impl GenServer
   def init({url, headers, into, conn_opts, registry_key}) do
@@ -176,7 +186,17 @@ defmodule Kubereq.Websocket.Adapter do
             {:halt, {:stop, {:remote_closed, code, reason}, new_state}}
         end)
 
-      {:error, mint, websocket, error} ->
+      {:error, mint, websocket, error, frames} ->
+        Enum.each(frames, fn
+          {:binary, message} ->
+            message
+            |> map_incoming_message()
+            |> stream_to(state.into)
+
+          other ->
+            stream_to(other, state.into)
+        end)
+
         {:stop, error, %{state | mint: mint, websocket: websocket}}
     end
   end
@@ -197,26 +217,39 @@ defmodule Kubereq.Websocket.Adapter do
     end
   end
 
+  @spec send_frame(outgoing_frame(), Mint.HTTP.t(), Mint.WebSocket.t(), Mint.Types.request_ref()) ::
+          {:ok, Mint.HTTP.t(), Mint.WebSocket.t()}
+          | :closed
+          | {:error, Mint.HTTP.t(), Mint.WebSocket.t(), Mint.WebSocket.error()}
   defp send_frame(frame, mint, websocket, ref) do
     with true <- Mint.HTTP.open?(mint),
          {:ok, websocket, data} <- Mint.WebSocket.encode(websocket, frame),
          {:ok, mint} <- Mint.WebSocket.stream_request_body(mint, ref, data) do
       {:ok, mint, websocket}
     else
-      false -> :closed
-      {:error, %Mint.WebSocket{} = websocket, error} -> {:error, mint, websocket, error}
-      {:error, mint, error} -> {:error, mint, websocket, error}
+      false ->
+        :closed
+
+      {:error, mint_or_websocket, error} ->
+        if is_struct(mint_or_websocket, Mint.WebSocket) do
+          {:error, mint, mint_or_websocket, error}
+        else
+          {:error, mint_or_websocket, websocket, error}
+        end
     end
   end
 
+  @spec receive_frames(term(), Mint.HTTP.t(), Mint.WebSocket.t(), Mint.Types.request_ref()) ::
+          {:ok, Mint.HTTP.t(), Mint.WebSocket.t(), [Mint.Types.response()]}
+          | {:error, Mint.HTTP.t(), Mint.WebSocket.t(), Mint.WebSocket.error(),
+             [Mint.Types.response()]}
   defp receive_frames(message, mint, websocket, ref) do
     with {:ok, mint, [{:data, ^ref, data}]} <- Mint.WebSocket.stream(mint, message),
          {:ok, websocket, frames} <- Mint.WebSocket.decode(websocket, data) do
       {:ok, mint, websocket, frames}
     else
-      {:error, error} -> {:error, mint, websocket, error}
-      {:error, %Mint.WebSocket{} = websocket, error} -> {:error, mint, websocket, error}
-      {:error, mint, error} -> {:error, mint, websocket, error}
+      {:error, websocket, error, frames} -> {:error, mint, websocket, error, frames}
+      {:error, mint, error} -> {:error, mint, websocket, error, []}
     end
   end
 
@@ -227,7 +260,7 @@ defmodule Kubereq.Websocket.Adapter do
   def map_incoming_message(binary), do: {:binary, binary}
 
   @spec map_outgoing_frame(outgoing_message()) ::
-          {:ok, outgoing_frame()} | {:error, %ArgumentError{}}
+          {:ok, outgoing_frame()} | {:error, Exception.t()}
   def map_outgoing_frame({:binary, data}), do: {:ok, {:binary, data}}
   def map_outgoing_frame(:close), do: {:ok, :close}
   def map_outgoing_frame({:close, code, reason}), do: {:ok, {:close, code, reason}}
@@ -241,18 +274,24 @@ defmodule Kubereq.Websocket.Adapter do
      }}
   end
 
+  @spec http_scheme(binary()) :: atom()
   defp http_scheme("http"), do: :http
   defp http_scheme("https"), do: :https
 
+  @spec ws_scheme(binary()) :: atom()
   defp ws_scheme("http"), do: :ws
   defp ws_scheme("https"), do: :wss
 
+  @spec stream_to(incoming_message(), {Process.dest(), reference()} | Process.dest()) ::
+          incoming_message()
   defp stream_to(message, {dest, ref}), do: send(dest, {ref, message})
   defp stream_to(message, dest), do: send(dest, message)
 
+  @spec receive_upgrade_response(Mint.HTTP.t(), Mint.Types.request_ref()) ::
+          {:ok, Mint.HTTP.t(), map()} | {:error, Mint.HTTP.t(), Mint.WebSocket.error()}
   defp receive_upgrade_response(mint, ref) do
     Enum.reduce_while(Stream.cycle([:ok]), {mint, %{}}, fn _, {mint, response} ->
-      case Mint.HTTP.recv(mint, 0, 10000) do
+      case Mint.HTTP.recv(mint, 0, 10_000) do
         {:ok, mint, parts} ->
           response =
             parts
@@ -262,6 +301,7 @@ defmodule Kubereq.Websocket.Adapter do
             end)
             |> Map.merge(response)
 
+          # credo:disable-for-lines:3
           if response[:done],
             do: {:halt, {:ok, mint, response}},
             else: {:cont, {mint, response}}

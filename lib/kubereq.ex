@@ -644,6 +644,14 @@ defmodule Kubereq do
 
   Opens a websocket to the given Pod and streams logs from it.
 
+  ## Examples
+
+      iex> ref = make_ref()
+      ...> res =
+      ...>   Req.new()
+      ...>   |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      ...>   |> Kubereq.log("default", "my-pod", {self(), ref},
+              params: %{"follow" => true}
   ## Options
 
   * `:params` - Map defining the query parameteres added to the request to the
@@ -686,12 +694,7 @@ defmodule Kubereq do
           opts :: Keyword.t() | nil
         ) ::
           response()
-  def log(req, namespace \\ nil, name, stream_to, opts \\ [])
-
-  def log(req, name, stream_to, opts, []) when is_list(opts),
-    do: log(req, nil, name, stream_to, opts)
-
-  def log(req, namespace, name, stream_to, opts) do
+  def log(req, namespace, name, stream_to, opts \\ []) do
     options =
       Keyword.merge(opts,
         operation: :connect,
@@ -763,12 +766,7 @@ defmodule Kubereq do
           opts :: Keyword.t() | nil
         ) ::
           response()
-  def exec(req, namespace \\ nil, name, stream_to, opts \\ [])
-
-  def exec(req, name, stream_to, opts, []) when is_list(opts),
-    do: exec(req, nil, name, stream_to, opts)
-
-  def exec(req, namespace, name, stream_to, opts) do
+  def exec(req, namespace, name, stream_to, opts \\ []) do
     options =
       Keyword.merge(opts,
         operation: :connect,

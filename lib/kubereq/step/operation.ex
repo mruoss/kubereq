@@ -2,6 +2,7 @@ defmodule Kubereq.Step.Operation do
   @moduledoc false
 
   alias Kubereq.Error.StepError
+  alias Kubereq.Websocket.Adapter
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t() | {Req.Request.t(), StepError.t()}
   def call(req) when not is_map_key(req.options, :operation) or is_nil(req.options.operation) do
@@ -104,7 +105,7 @@ defmodule Kubereq.Step.Operation do
     [
       url: "#{request_path}/#{subresource}",
       method: :post,
-      adapter: &Kubereq.Websocket.Adapter.run/1
+      adapter: &Adapter.run/1
     ]
   end
 end
