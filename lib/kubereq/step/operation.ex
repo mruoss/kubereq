@@ -2,6 +2,7 @@ defmodule Kubereq.Step.Operation do
   @moduledoc false
 
   alias Kubereq.Error.StepError
+  alias Kubereq.Websocket.Adapter
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t() | {Req.Request.t(), StepError.t()}
   def call(req) when not is_map_key(req.options, :operation) or is_nil(req.options.operation) do
@@ -69,11 +70,11 @@ defmodule Kubereq.Step.Operation do
   end
 
   defp operation(:delete, request_path, _subresource) do
-    [url: String.replace_suffix(request_path, "/:name", ""), method: :delete]
+    [url: "#{request_path}", method: :delete]
   end
 
   defp operation(:delete_all, request_path, _subresource) do
-    [url: "#{request_path}", method: :delete]
+    [url: String.replace_suffix(request_path, "/:name", ""), method: :delete]
   end
 
   defp operation(:apply, request_path, subresource) do
@@ -97,6 +98,14 @@ defmodule Kubereq.Step.Operation do
       url: "#{request_path}/#{subresource}",
       method: :patch,
       headers: [{"Content-Type", "application/merge-patch+json"}]
+    ]
+  end
+
+  defp operation(:connect, request_path, subresource) do
+    [
+      url: "#{request_path}/#{subresource}",
+      method: :post,
+      adapter: &Adapter.run/1
     ]
   end
 end

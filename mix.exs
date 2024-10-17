@@ -41,6 +41,10 @@ defmodule Kubereq.MixProject do
       {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.0"},
 
+      # Optional deps
+      {:mint, "~> 1.0"},
+      {:mint_web_socket, "~> 1.0"},
+
       # Test deps
       {:excoveralls, "~> 0.18", only: :test},
       {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},

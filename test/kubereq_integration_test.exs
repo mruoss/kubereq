@@ -1,8 +1,11 @@
 defmodule KubereqIntegrationTest do
   use ExUnit.Case, async: true
+
   @moduletag :integration
 
   import YamlElixir.Sigil
+
+  alias Kubereq.Websocket.Response
 
   @cluster_name "kubereq"
   @kubeconfig_path "test/support/kubeconfig-integration.yaml"
@@ -30,6 +33,9 @@ defmodule KubereqIntegrationTest do
     req_ns =
       Req.new() |> Kubereq.attach(kubeconfig: kubeconf, api_version: "v1", kind: "Namespace")
 
+    req_pod =
+      Req.new() |> Kubereq.attach(kubeconfig: kubeconf, api_version: "v1", kind: "Pod")
+
     req_cm =
       Req.new() |> Kubereq.attach(kubeconfig: kubeconf, api_version: "v1", kind: "ConfigMap")
 
@@ -43,18 +49,20 @@ defmodule KubereqIntegrationTest do
 
     [
       req_cm: req_cm,
-      req_ns: req_ns
+      req_ns: req_ns,
+      req_pod: req_pod,
+      kubeconfig: kubeconf
     ]
   end
 
-  setup %{req_cm: req_cm} do
-    test_id = :rand.uniform(10)
+  setup %{req_cm: req_cm, req_pod: req_pod} do
+    test_id = :rand.uniform(10_000)
 
     example_config_1 = ~y"""
     apiVersion: v1
     kind: ConfigMap
     metadata:
-      name: example-config-1-#{:rand.uniform(10000)}
+      name: example-config-1-#{:rand.uniform(10_000)}
       namespace: #{@namespace}
       labels:
         test: kubereq-#{test_id}
@@ -78,6 +86,7 @@ defmodule KubereqIntegrationTest do
 
     on_exit(fn ->
       Kubereq.delete_all(req_cm, @namespace, label_selectors: [{"app", "kubereq"}])
+      Kubereq.delete_all(req_pod, @namespace, label_selectors: [{"app", "kubereq"}])
     end)
 
     [example_config_1: example_config_1, example_config_2: example_config_2, test_id: test_id]
@@ -255,5 +264,96 @@ defmodule KubereqIntegrationTest do
 
     assert_receive {^ref,
                     %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+  end
+
+  test "streams pod logs to process", %{req_pod: req} do
+    pod_name = "example-pod-#{:rand.uniform(10_000)}"
+    log_stmt = "foo bar"
+
+    pod = ~y"""
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      namespace: #{@namespace}
+      name: #{pod_name}
+      labels:
+        app: kubereq
+    spec:
+      containers:
+        - name: main
+          image: busybox
+          command:
+            - /bin/sh
+            - "-c"
+            - 'echo "#{log_stmt}"'
+            - "sleep infinity"
+    """
+
+    Kubereq.apply(req, pod)
+
+    :ok =
+      Kubereq.wait_until(req, @namespace, pod_name, &(&1["status"]["phase"] == "Running"),
+        timeout: :timer.minutes(2)
+      )
+
+    ref = make_ref()
+    Kubereq.log(req, @namespace, pod_name, {self(), ref}, params: %{"follow" => false})
+    assert_receive({^ref, {:binary, ^log_stmt <> "\n"}})
+    assert_receive({^ref, {:close, 1_000, ""}})
+  end
+
+  test "streams exec commands to pod and prompts back to process", %{req_pod: req} do
+    pod_name = "example-pod-#{:rand.uniform(10_000)}"
+
+    pod = ~y"""
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      namespace: #{@namespace}
+      name: #{pod_name}
+      labels:
+        app: kubereq
+    spec:
+      containers:
+        - name: main
+          image: busybox
+          command:
+            - /bin/sh
+            - "-c"
+            - "sleep infinity"
+    """
+
+    Kubereq.apply(req, pod)
+
+    :ok =
+      Kubereq.wait_until(req, @namespace, pod_name, &(&1["status"]["phase"] == "Running"),
+        timeout: :timer.minutes(2)
+      )
+
+    ref = make_ref()
+
+    {:ok, resp} =
+      Kubereq.exec(
+        req,
+        @namespace,
+        pod_name,
+        {self(), ref},
+        params: %{"tty" => true, "stdout" => true, "stdin" => true, "command" => "/bin/sh"}
+      )
+
+    Response.send_message(resp.body, {:stdin, ~s(echo "foo bar"\n)})
+
+    result = receive_loop(ref, resp.body, "") |> IO.iodata_to_binary()
+    assert result == ~s(/ # echo "foo bar"\r\nfoo bar\r\n/ # )
+  end
+
+  defp receive_loop(ref, websocket_response, acc) do
+    receive do
+      {^ref, {:stdout, data}} -> receive_loop(ref, websocket_response, [acc, data])
+    after
+      500 ->
+        Response.send_message(websocket_response, :close)
+        acc
+    end
   end
 end
