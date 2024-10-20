@@ -43,7 +43,8 @@ defmodule Kubereq.Kubeconfig do
           current_cluster: map(),
           current_user: map(),
           halted: boolean(),
-          assigns: map()
+          assigns: map(),
+          current_namespace: String.t() | nil,
         }
 
   defstruct clusters: [],
@@ -52,8 +53,9 @@ defmodule Kubereq.Kubeconfig do
             current_context: nil,
             current_cluster: nil,
             current_user: nil,
+            current_namespace: nil
             halted: false,
-            assigns: %{}
+            assigns: %{},
 
   @doc """
   Creates a new `%Kubereq.Kubeconfig{}` struct with the given fields
@@ -85,10 +87,12 @@ defmodule Kubereq.Kubeconfig do
         "user"
       ])
 
+
     struct!(kubeconfig,
       current_cluster: current_cluster,
       current_user: current_user,
-      current_context: current_context
+      current_context: current_context,
+      current_namespace: context["namespace"]
     )
   end
 
