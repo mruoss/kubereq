@@ -13,6 +13,7 @@ defmodule Kubereq.Step do
       :api_version,
       :field_selectors,
       :kind,
+      :context,
       :kubeconfig,
       :label_selectors,
       :operation,
@@ -43,7 +44,8 @@ defmodule Kubereq.Step do
   end
 
   def call(req) do
-    with %Req.Request{} = req <- Step.Plug.call(req),
+    with %Req.Request{} = req <- Step.Context.call(req),
+         %Req.Request{} = req <- Step.Plug.call(req),
          %Req.Request{} = req <- Step.Operation.call(req),
          %Req.Request{} = req <- Step.Impersonate.call(req),
          %Req.Request{} = req <- Step.Auth.call(req),
