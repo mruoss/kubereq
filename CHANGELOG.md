@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add current context's namespace as `:current_namespace` field to Kubeconfig.
--
+- Add Req option `:context` to switch context ad-hoc.
 
 <!--------------------- Don't add new entries after this line --------------------->
 
