@@ -69,11 +69,11 @@ defmodule Kubereq.Step.Operation do
   end
 
   defp operation(:delete, request_path, _subresource) do
-    [url: String.replace_suffix(request_path, "/:name", ""), method: :delete]
+    [url: request_path, method: :delete]
   end
 
   defp operation(:delete_all, request_path, _subresource) do
-    [url: "#{request_path}", method: :delete]
+    [url: String.replace_suffix(request_path, "/:name", ""), method: :delete]
   end
 
   defp operation(:apply, request_path, subresource) do

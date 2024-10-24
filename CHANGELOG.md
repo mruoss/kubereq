@@ -11,10 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
+### Fixed
+
+- Include resource name in the path for deletion in order to prevent deleting multiple resources [#41](https://github.com/mruoss/kubereq/issues/41), [#42](https://github.com/mruoss/kubereq/pull/42)
+
 ### Added
 
-- Add current context's namespace as `:current_namespace` field to Kubeconfig.
-- Add Req option `:context` to switch context ad-hoc.
+- Add current context's namespace as `:current_namespace` field to Kubeconfig. [#39](https://github.com/mruoss/kubereq/pull/39)
+- Add Req option `:context` to switch context ad-hoc. [#39](https://github.com/mruoss/kubereq/pull/39)
 
 <!--------------------- Don't add new entries after this line --------------------->
 
