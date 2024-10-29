@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
+### Added
+
+- Streaming for paginated list operation
+
 <!--------------------- Don't add new entries after this line --------------------->
 
 ## 0.3.2 - 2024-11-22

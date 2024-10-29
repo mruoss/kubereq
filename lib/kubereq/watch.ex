@@ -10,27 +10,6 @@ defmodule Kubereq.Watch do
 
   defstruct [:resume_callback, :resource_version, remainder: ""]
 
-  @spec create_stream(Req.Response.t()) :: Enumerable.t(binary())
-  def create_stream(resp) do
-    Stream.resource(
-      fn -> nil end,
-      fn _ ->
-        case Req.parse_message(resp, receive(do: (message -> message))) do
-          {:ok, :done} ->
-            {:halt, nil}
-
-          {:ok, message} ->
-            {Keyword.get_values(message, :data), nil}
-
-          message ->
-            Logger.error("Req returned unexpected message: #{inspect(message)}")
-            {:halt, nil}
-        end
-      end,
-      &Function.identity/1
-    )
-  end
-
   @spec transform_to_objects(Enumerable.t(binary())) :: Enumerable.t(map())
   def transform_to_objects(stream) do
     stream

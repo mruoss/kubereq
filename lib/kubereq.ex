@@ -105,10 +105,10 @@ defmodule Kubereq do
   @type wait_until_callback :: (map() | :deleted -> boolean | {:error, any})
   @type wait_until_response :: :ok | {:error, :watch_timeout}
   @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
+  @type list_response() :: response() | {:ok, Kubereq.ResponseAsync.t()} | {:ok, any()}
   @type namespace() :: String.t() | nil
   @type subresource() :: String.t() | nil
   @type watch_response :: {:ok, Enumerable.t(map())} | {:ok, Task.t()} | {:error, Exception.t()}
-  @typep do_watch_response :: {:ok, Enumerable.t(map())} | {:error, Exception.t()}
 
   @deprecated "Use Kubereq.attach/2"
   @spec new(kubeconfig :: Kubereq.Kubeconfig.t()) :: Req.Request.t()
@@ -217,13 +217,61 @@ defmodule Kubereq do
       ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
       ...> |> Kubereq.list("default")
       {:ok, %Req.Response{status: 200, body: %{...}}}
+
+  ### Options
+
+    * `:into` - Optional. Can be set to `:self` or to a `{:func, acc}` tuple.
+      The `:into` option for `list/3` act's differently than for a normal `Req`
+      request. When given, the underlying list request to Kubernetes is paginated
+      using `:limit` and `:continue` query parameters.
+
+    * `:limit` - Optional. Used to paginate the list request.
+
+  ### Async Response through the `into: :self`
+
+  With `into: :self`, the function returns `{:ok, async_response}` upon success
+  where `async_response` is a struct of type `%Kubereq.ResponseAsync{}` which
+  implements the `Enumerable` protocol.
+
+      iex> {:ok, async_resp} = Kubereq.list(req, into: :self, api_version: "v1", kind: "Pod")
+      ...> async_resp |> Stream.take(25) |> Enum.to_list()
+      [...]
+
+  ### Async Response through the `into: {into_fun, acc}`
+
+  Instead of `:self` you can pass a tuple of the form {into_fun, acc} when
+  `into_fun` is a function of arity 2 and has the same declaration as the
+  callback passed to `Enum.reduce_while/3`. `acc` is the initial accumulator
+  passed to `into_fun`. The function is expected to return `{:cont, acc}` or
+  `{:halt, acc}`.
+
+      iex> into_fun = fn item, acc ->
+      ...>   if length(acc) < 25 do
+      ...>     {:cont, [item | acc]}
+      ...>   else
+      ...>     {:halt, [item | acc]}
+      ...>   end
+      ...> end
+      ...> {:ok, result} = Kubereq.list(req, into: {into_fun, []}, api_version: "v1", kind: "Pod")
+      {:ok, [...]}
+
   """
-  @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
+  @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: list_response()
   def list(req, namespace \\ nil, opts \\ [])
 
   def list(req, opts, []) when is_list(opts), do: list(req, nil, opts)
 
   def list(req, namespace, opts) do
+    case opts[:into] do
+      nil ->
+        do_list(req, namespace, opts)
+
+      into ->
+        do_stream_list(req, namespace, opts, into)
+    end
+  end
+
+  defp do_list(req, namespace, opts) do
     options =
       Keyword.merge(opts,
         operation: :list,
@@ -233,6 +281,38 @@ defmodule Kubereq do
       )
 
     Req.request(req, options)
+  end
+
+  defp do_stream_list(req, namespace, opts, :self) do
+    params = opts[:params] || []
+    params = Keyword.put_new(params, :limit, 10)
+
+    opts = Keyword.delete(opts, :into)
+
+    stream_fun = fn req, params ->
+      opts = Keyword.put(opts, :params, params)
+
+      with {:ok, %{status: 200, body: body}} <-
+             do_list(req, namespace, opts) do
+        if body["metadata"]["remainingItemCount"] do
+          next_params =
+            Keyword.merge(params, continue: body["metadata"]["continue"])
+
+          {:ok, body["items"], next_params}
+        else
+          :done
+        end
+      end
+    end
+
+    {:ok, Kubereq.ResponseAsync.new(req: req, stream_fun: stream_fun, stream_acc: params)}
+  end
+
+  defp do_stream_list(req, namespace, opts, {fun, acc}) when is_function(fun) do
+    with {:ok, async} <- do_stream_list(req, namespace, opts, :self) do
+      result = Enum.reduce_while(async, acc, fun)
+      {:ok, result}
+    end
   end
 
   @doc """
@@ -429,7 +509,7 @@ defmodule Kubereq do
 
   All options described in the moduledoc plus:
 
-  * `timeout` - Timeout in ms after function terminates with `{:error, :timeout}`
+  * `:timeout` - Timeout in ms after function terminates with `{:error, :timeout}`
   """
   @spec wait_until(
           Req.Request.t(),
@@ -446,26 +526,19 @@ defmodule Kubereq do
 
   def wait_until(req, namespace, name, callback, opts) do
     {timeout, opts} = Keyword.pop(opts, :timeout, 10_000)
-    ref = make_ref()
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
 
     with {:ok, resp} <- list(req, namespace, opts),
          {:init, false} <- {:init, callback.(List.first(resp.body["items"]) || :deleted)} do
-      {:ok, watch_task} =
-        watch(
-          req,
-          namespace,
-          Keyword.merge(opts,
-            resource_version: resp.body["metadata"]["resourceVersion"],
-            stream_to: {self(), ref}
-          )
+      {:ok, resp} =
+        req
+        |> Req.merge(
+          params: [resource_version: resp.body["metadata"]["resourceVersion"]],
+          receive_timeout: timeout
         )
+        |> watch(namespace)
 
-      timer = Process.send_after(self(), {ref, :timeout}, timeout)
-      result = wait_event_loop(ref, callback)
-      Task.shutdown(watch_task)
-      Process.cancel_timer(timer)
-      result
+      wait_event_loop(resp.body, callback)
     else
       {:init, true} -> :ok
       {:init, {:error, error}} -> {:error, error}
@@ -473,22 +546,27 @@ defmodule Kubereq do
     end
   end
 
-  defp wait_event_loop(ref, callback) do
-    receive do
-      {^ref, %{"type" => "DELETED"}} ->
+  defp wait_event_loop(stream, callback) do
+    stream
+    |> Enum.reduce_while(nil, fn
+      %{"type" => "DELETED"}, _acc ->
         case callback.(:deleted) do
-          true -> :ok
-          false -> :ok
-          :ok -> :ok
-          {:error, error} -> {:error, error}
+          true -> {:halt, :ok}
+          false -> {:halt, :ok}
+          :ok -> {:halt, :ok}
+          {:error, error} -> {:halt, {:error, error}}
         end
 
-      {^ref, %{"object" => resource}} ->
-        if callback.(resource), do: :ok, else: wait_event_loop(ref, callback)
-
-      {^ref, :timeout} ->
+      %{"object" => resource}, _acc ->
+        if callback.(resource), do: {:halt, :ok}, else: {:cont, nil}
+    end)
+  rescue
+    e in Mint.TransportError ->
+      if e.reason == :timeout do
         {:error, :watch_timeout}
-    end
+      else
+        reraise e, __STACKTRACE__
+      end
   end
 
   @doc """
@@ -508,12 +586,6 @@ defmodule Kubereq do
       ...> |> Kubereq.watch()
       {:ok, #Function<60.48886818/2 in Stream.transform/3>}
 
-  ### Options
-
-  All options described in the moduledoc plus:
-
-  * `:resource_version` - If given, starts to stream from the given `resourceVersion` of the resource list. Otherwise starts streaming from HEAD.
-  * `:stream_to` - If set to a `pid`, streams events to the given pid. If set to `{pid, ref}`, the messages are in the form `{ref, event}`.
   """
   @spec watch(
           Req.Request.t(),
@@ -528,21 +600,21 @@ defmodule Kubereq do
   end
 
   def watch(req, namespace, opts) do
-    {resource_version, opts} = Keyword.pop(opts, :resource_version)
-    {steam_to, opts} = Keyword.pop(opts, :stream_to)
-    do_watch = fn -> do_watch(req, namespace, resource_version, opts) end
+    req =
+      req
+      |> Req.merge(opts)
+      |> Req.merge(
+        operation: :watch,
+        path_params: [namespace: namespace],
+        into: :self
+      )
 
-    case steam_to do
-      nil ->
-        do_watch.()
+    req = update_in(req.options, &Map.put_new(&1, :receive_timeout, :infinity))
 
-      {pid, ref} ->
-        task = watch_create_task(do_watch, &send(pid, {ref, &1}))
-        {:ok, task}
+    with {:ok, %{status: 200, body: body} = resp} <- Req.get(req, opts) do
+      stream = Kubereq.Watch.transform_to_objects(body)
 
-      pid ->
-        task = watch_create_task(do_watch, &send(pid, &1))
-        {:ok, task}
+      {:ok, %{resp | body: stream}}
     end
   end
 
@@ -592,61 +664,6 @@ defmodule Kubereq do
   def watch_single(req, namespace, name, opts) do
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
     watch(req, namespace, opts)
-  end
-
-  @spec watch_create_task(
-          (-> do_watch_response()),
-          (map() -> any())
-        ) :: Task.t()
-  defp watch_create_task(do_watch_callback, send_callback) do
-    Task.async(fn ->
-      case do_watch_callback.() do
-        {:ok, stream} ->
-          stream
-          |> Stream.map(send_callback)
-          |> Stream.run()
-
-        {:error, error} ->
-          send_callback.({:error, error})
-      end
-    end)
-  end
-
-  @spec do_watch(
-          Req.Request.t(),
-          namespace :: namespace(),
-          resource_version :: integer() | String.t(),
-          opts :: keyword()
-        ) :: do_watch_response()
-  defp do_watch(req, namespace, nil, opts) do
-    with {:ok, resp} <- list(req, namespace, opts) do
-      resource_version = resp.body["metadata"]["resourceVersion"]
-      do_watch(req, namespace, resource_version, opts)
-    end
-  end
-
-  defp do_watch(req, namespace, resource_version, opts) do
-    with {:ok, resp} <-
-           Req.get(req,
-             operation: :watch,
-             field_selectors: opts[:field_selectors],
-             label_selectors: opts[:label_selectors],
-             path_params: [namespace: namespace],
-             receive_timeout: :infinity,
-             into: :self,
-             params: [
-               watch: "1",
-               allowWatchBookmarks: "1",
-               resourceVersion: resource_version
-             ]
-           ) do
-      stream =
-        resp
-        |> Kubereq.Watch.create_stream()
-        |> Kubereq.Watch.transform_to_objects()
-
-      {:ok, stream}
-    end
   end
 
   @doc """

@@ -62,9 +62,7 @@ defmodule Kubereq.Step.Operation do
     [
       url: String.replace_suffix(request_path, "/:name", ""),
       method: :get,
-      params: [watch: "1", allowWatchBookmarks: "1"],
-      receive_timeout: :infinity,
-      into: :self
+      params: [watch: "1", allowWatchBookmarks: "1"]
     ]
   end
 
