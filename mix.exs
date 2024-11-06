@@ -40,10 +40,9 @@ defmodule Kubereq.MixProject do
       {:pluggable, "~> 1.0"},
       {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.0"},
-
-      # Optional deps
       {:mint, "~> 1.0"},
       {:mint_web_socket, "~> 1.0"},
+      {:fresh, "~> 0.4.4"},
 
       # Test deps
       {:excoveralls, "~> 0.18", only: :test},
@@ -67,6 +66,10 @@ defmodule Kubereq.MixProject do
         "CHANGELOG.md"
       ],
       groups_for_modules: [
+        "Websocket Connection": [
+          Kubereq.PodExec,
+          Kubereq.PodLogs
+        ],
         "Kubeconfig Loading": [
           Kubereq.Kubeconfig,
           Kubereq.Kubeconfig.Default,

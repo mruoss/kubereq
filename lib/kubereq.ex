@@ -1,13 +1,17 @@
 defmodule Kubereq do
   @moduledoc ~S"""
-  Kubereq processes requests to your Kubernetes API Server.
+  A Kubernetes client for Elixir based on `Req`.
 
   ## Usage
 
-  This library can used with plan `Req` but the function in this module
-  provide an easier API to people used to `kubectl` and friends.
+  First, attach `kubereq` to your `Req` request (see `attach/2` for options):
 
-  ### Plain Req
+      Req.new() |> Kubereq.attach()
+
+  Now you can use plain Req functionality. However, the functions defined in
+  this module make it much easier to perform the most common operation.
+
+  ### Usage with plain Req functionality
 
   Use `Kubereq.Kubeconfig.Default` to create connection to cluster and
   plain `Req.request()` to make the request
@@ -45,7 +49,7 @@ defmodule Kubereq do
   Req.request!(sa_req,  operation: :list, path_params: [namespace: "default"])
   ```
 
-  ### Kubectl API
+  ### Kubereq API
 
   While this library can attach to any `Req` struct, it is sometimes easier
   to prepare `Req` for a specific resource and then use the functions
@@ -119,15 +123,20 @@ defmodule Kubereq do
   end
 
   @doc """
-  Attaches `kubereq` to a `Req.Request` struct for making HTTP requests to a Kubernetes
-  cluster. You can optionally pass a Kubernetes configuration or pipeline via
-  `kubeconfig` option. If it is omitted, the default config
+  Attaches `kubereq` to a `Req.Request` struct for making HTTP requests to a
+  Kubernetes cluster. You can optionally pass a Kubernetes configuration or
+  pipeline via `kubeconfig` option. If it is omitted, the default config
   `Kubereq.Kubeconfig.Default` is loaded.
 
   ### Examples
 
       iex> Req.new() |> Kubereq.attach()
       %Request.Req{...}
+
+  ### Options
+
+  All options (see Options section in module doc) are accepted and merged with
+  the given req.
   """
   @spec attach(req :: Req.Request.t(), opts :: Keyword.t()) :: Req.Request.t()
   def attach(req, opts \\ []) do
@@ -642,139 +651,137 @@ defmodule Kubereq do
 
   @doc """
 
-  Opens a websocket to the given Pod and streams logs from it.
+  Opens a websocket to the given container and streams logs from it.
+
+  > #### Info {: .tip}
+  >
+  > This function blocks the process. It should be used to retrieve a finite
+  > set of logs from a container. If you want to follow logs, use
+  > `Kubereq.PodLogs` combined with the `:follow` options instead.
 
   ## Examples
 
-      iex> ref = make_ref()
-      ...> res =
-      ...>   Req.new()
-      ...>   |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...>   |> Kubereq.log("default", "my-pod", {self(), ref},
-              params: %{"follow" => true}
+      req = Req.new() |> Kubereq.attach()
+      {:ok, resp} =
+        Kubereq.logs(req, "default", "my-pod",
+          container: "main-container",
+          tailLines: 5
+        )
+      Enum.each(resp.body, &IO.inspect/1)
+
   ## Options
 
-  * `:params` - Map defining the query parameteres added to the request to the
-    `pods/log` subresource. The `log` subresource supports the following
-    paremeters:
-
-    * `container` -  (optional) Specifies the container for which to return
-      logs. If omitted, returns logs for the first container in the pod.
-    * `follow` - (optional) If set to true, the request will stay open and
-      continue to return new log entries as they are generated. Default is
-      false.
-    * `previous` - (optional) If true, return logs from previous terminated
-      containers. Default is false.
-    * `sinceSeconds` - (optional) Returns logs newer than a relative duration in
-      seconds. Conflicts with sinceTime.
-    * `sinceTime` - (optional) Returns logs after a specific date (RFC3339
-      format). Conflicts with sinceSeconds.
-    * `timestamps` - (optional) If true, add an RFC3339 timestamp at the
-      beginning of every line. Default is false.
-    * `tailLines` - (optional) Specifies the number of lines from the end of the
-      logs to show. If not specified, logs are shown from the creation of the
-      container or sinceSeconds/sinceTime.
-    * `limitBytes` - (optional) The maximum number of bytes to return from the
-      server. If not specified, no limit is imposed.
-    * `insecureSkipTLSVerifyBackend` - (optional) If true, bypasses certificate
-      verification for the kubelet's HTTPS endpoint. This is useful for clusters
-      with self-signed certificates. Default is false.
-    * `pretty` - (optional) If true, formats the output in a more readable
-      format. This is typically used for debugging and not recommended for
-      programmatic access.
-    * `prefix` - (optional) [Note: Availability may depend on Kubernetes
-      version] If true, adds the container name as a prefix to each line. Useful
-      when requesting logs for multiple containers.
+  * `:container` - The container for which to stream logs. Defaults to only
+    container if there is one container in the pod. Fails if not defined for
+    pods with multiple pods.
+  * `:follow` - Follow the log stream of the pod. If this is set to `true`,
+    the connection is kept alive which blocks current the process. If you need
+    this, you probably want to use `Kubereq.PodLogs` instead. Defaults to
+    `false`.
+  * `:insecureSkipTLSVerifyBackend` - insecureSkipTLSVerifyBackend indicates
+    that the apiserver should not confirm the validity of the serving
+    certificate of the backend it is connecting to. This will make the HTTPS
+    connection between the apiserver and the backend insecure. This means the
+    apiserver cannot verify the log data it is receiving came from the real
+    kubelet. If the kubelet is configured to verify the apiserver's TLS
+    credentials, it does not mean the connection to the real kubelet is
+    vulnerable to a man in the middle attack (e.g. an attacker could not
+    intercept the actual log data coming from the real kubelet).
+  * `:limitBytes` - If set, the number of bytes to read from the server before
+    terminating the log output. This may not display a complete final line of
+    logging, and may return slightly more or slightly less than the specified
+    limit.
+  * `:pretty` - If 'true', then the output is pretty printed.
+  * `:previous` - Return previous t  erminated container logs. Defaults to
+    `false`.
+  * `:sinceSeconds` - A relative time in seconds before the current time from
+    which to show logs. If this value precedes the time a pod was started,
+    only logs since the pod start will be returned. If this value is in the
+    future, no logs will be returned. Only one of sinceSeconds or sinceTime
+    may be specified.
+  * `:tailLines` - If set, the number of lines from the end of the logs to
+    show. If not specified, logs are shown from the creation of the container
+    or sinceSeconds or sinceTime
+  * `:timestamps` - If true, add an RFC3339 or RFC3339Nano timestamp at the
+    beginning of every line of log output. Defaults to `false`.
   """
-  @spec log(
+  @spec logs(
           Req.Request.t(),
           namespace :: namespace(),
           name :: String.t(),
-          stream_to :: {Process.dest(), reference()} | Process.dest(),
           opts :: Keyword.t() | nil
         ) ::
           response()
-  def log(req, namespace, name, stream_to, opts \\ []) do
-    options =
-      Keyword.merge(opts,
+  def logs(req, namespace, name, opts \\ []) do
+    opts =
+      opts
+      |> Keyword.merge(
+        namespace: namespace,
+        name: name,
         operation: :connect,
-        path_params: [namespace: namespace, name: name],
-        into: stream_to,
-        subresource: "log"
+        subresource: "log",
+        adapter: &Kubereq.Connect.run(&1)
       )
+      |> Kubereq.Connect.args_to_opts()
 
-    Req.request(req, options)
+    Req.request(req, opts)
   end
 
-  @doc """
+  @doc ~S"""
 
-  Opens a websocket to the given Pod and executes a command on it. Can be used
-  to open a shell.
+  Opens a websocket to the given Pod and executes a command on it.
+
+  > #### Info {: .tip}
+  >
+  > This function blocks the process. It should be used to execute commands
+  > which terminate eventually. To implement a shell with a long running
+  > connection, use `Kubereq.PodExec` with `tty: true` instead.
 
   ## Examples
+      {:ok, resp} =
+        Kubereq.exec(req, "defaault", "my-pod",
+          container: "main-container",
+          command: "/bin/sh",
+          command: "-c",
+          command: "echo foobar",
+          stdout: true,
+          stderr: true
+        )
+      Enum.each(resp.body, &IO.inspect/1)
+      # {:stdout, ""}
+      # {:stdout, "foobar\n"}
 
-      iex> ref = make_ref()
-      ...> res =
-      ...>   Req.new()
-      ...>   |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...>   |> Kubereq.exec("default", "my-pod", {self(), ref},
-              params: %{
-                "command" => "/bin/bash"
-                "tty" => true,
-                "stdin" => true,
-                "stdout" => true,
-                "stderr" => true,
-              }
+  ## Options
 
-  Messages are sent to the passed Process with the reference included:
+  * `:container` (optional) - The container to connect to. Defaults to only
+    container if there is one container in the pod. Fails if not defined for
+    pods with multiple pods.
+  * `:command` - Command is the remote command to execute. Not executed within a shell.
+  * `:stdin` (optional) - Redirect the standard input stream of the pod for this call. Defaults to `true`.
+  * `:stdin` (optional) - Redirect the standard output stream of the pod for this call. Defaults to `true`.
+  * `:stderr` (optional) - Redirect the standard error stream of the pod for this call. Defaults to `true`.
+  * `:tty` (optional) - If `true` indicates that a tty will be allocated for the exec call. Defaults to `false`.
 
-      iex> receive(do: ({^ref, message} -> IO.inspect(message)))
-
-  The `body` of the `Req.Response` is a struct. If `tty` is set to true and
-  `command` is a shell, you can pass to
-  `Kubereq.Websocket.Response.send_message/3` in order to send instructions
-  through the websocket to the shell.
-
-      ...> res.body.()
-
-  ## Options
-
-  * `:params` - Map defining the query parameteres added to the request to the
-    `pods/exec` subresource. The `exec` subresource supports the following
-    paremeters:
-
-    * `container` (optional) - Specifies the container in the pod to execute the
-      command. If omitted, the first container in the pod will be chosen.
-    * `command` (optional) - The command to execute inside the container. This
-      parameter can be specified multiple times to represent a command with
-      multiple arguments. If omitted, the container's default command will be
-      used.
-    * `stdin` (optional) - If true, pass stdin to the container. Default is
-      false.
-    * `stdout` (optional) - If true, return stdout from the container. Default
-      is false.
-    * `stderr` (optional) - If true, return stderr from the container. Default
-      is false.
-    * `tty` (optional) - If true, allocate a pseudo-TTY for the container.
-      Default is false.
   """
   @spec exec(
-          Req.Request.t(),
+          req :: Req.Request.t(),
           namespace :: namespace(),
           name :: String.t(),
-          stream_to :: {Process.dest(), reference()} | Process.dest(),
           opts :: Keyword.t() | nil
         ) ::
           response()
-  def exec(req, namespace, name, stream_to, opts \\ []) do
-    options =
-      Keyword.merge(opts,
+  def exec(req, namespace, name, opts \\ []) do
+    opts =
+      opts
+      |> Keyword.merge(
+        namespace: namespace,
+        name: name,
         operation: :connect,
-        path_params: [namespace: namespace, name: name],
-        into: stream_to,
-        subresource: "exec"
+        subresource: "exec",
+        adapter: &Kubereq.Connect.run(&1)
       )
+      |> Kubereq.Connect.args_to_opts()
 
-    Req.request(req, options)
+    Req.request(req, opts)
   end
 end

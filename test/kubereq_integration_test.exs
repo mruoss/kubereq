@@ -1,11 +1,9 @@
 defmodule KubereqIntegrationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   @moduletag :integration
 
   import YamlElixir.Sigil
-
-  alias Kubereq.Websocket.Response
 
   @cluster_name "kubereq"
   @kubeconfig_path "test/support/kubeconfig-integration.yaml"
@@ -266,6 +264,46 @@ defmodule KubereqIntegrationTest do
                     %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
   end
 
+  test "receives pod logs synchronously from pod container", %{req_pod: req} do
+    pod_name = "example-pod-#{:rand.uniform(10_000)}"
+    log_stmt = "foo bar"
+
+    pod = ~y"""
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      namespace: #{@namespace}
+      name: #{pod_name}
+      labels:
+        app: kubereq
+    spec:
+      containers:
+        - name: main
+          image: busybox
+          command:
+            - /bin/sh
+            - "-c"
+            - 'echo "#{log_stmt}"'
+            - "sleep infinity"
+    """
+
+    Kubereq.apply(req, pod)
+
+    :ok =
+      Kubereq.wait_until(req, @namespace, pod_name, &(&1["status"]["phase"] == "Running"),
+        timeout: :timer.minutes(2)
+      )
+
+    {:ok, resp} = Kubereq.logs(req, @namespace, pod_name)
+
+    stdout =
+      resp.body
+      |> Enum.reduce("", fn {:stdout, out}, acc -> [acc, out] end)
+      |> IO.iodata_to_binary()
+
+    assert stdout =~ "#{log_stmt}\n"
+  end
+
   test "streams pod logs to process", %{req_pod: req} do
     pod_name = "example-pod-#{:rand.uniform(10_000)}"
     log_stmt = "foo bar"
@@ -297,9 +335,71 @@ defmodule KubereqIntegrationTest do
       )
 
     ref = make_ref()
-    Kubereq.log(req, @namespace, pod_name, {self(), ref}, params: %{"follow" => false})
-    assert_receive({^ref, {:binary, ^log_stmt <> "\n"}})
-    assert_receive({^ref, {:close, 1_000, ""}})
+
+    {:ok, _pid} =
+      Kubereq.PodLogs.start_link(
+        req: req,
+        namespace: @namespace,
+        name: pod_name,
+        into: {self(), ref}
+      )
+
+    logs =
+      Stream.repeatedly(fn -> :ok end)
+      |> Enum.reduce_while("", fn _, acc ->
+        receive do
+          {^ref, :stdout, text} -> {:cont, [acc, text]}
+          {:close, 1_000, ""} -> {:halt, acc}
+          _ -> {:cont, acc}
+        after
+          500 -> {:halt, acc}
+        end
+      end)
+
+    assert logs == ""
+  end
+
+  test "sends exec commands to pod and returns stdout", %{req_pod: req} do
+    pod_name = "example-pod-#{:rand.uniform(10_000)}"
+
+    pod = ~y"""
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      namespace: #{@namespace}
+      name: #{pod_name}
+      labels:
+        app: kubereq
+    spec:
+      containers:
+        - name: main
+          image: busybox
+          command:
+            - /bin/sh
+            - "-c"
+            - "sleep infinity"
+    """
+
+    Kubereq.apply(req, pod)
+
+    :ok =
+      Kubereq.wait_until(req, @namespace, pod_name, &(&1["status"]["phase"] == "Running"),
+        timeout: :timer.minutes(2)
+      )
+
+    {:ok, resp} =
+      Kubereq.exec(req, @namespace, pod_name,
+        command: "echo",
+        command: "foo",
+        stdout: true
+      )
+
+    stdout =
+      resp.body
+      |> Enum.reduce("", fn {:stdout, out}, acc -> [acc, out] end)
+      |> IO.iodata_to_binary()
+
+    assert stdout == "foo\n"
   end
 
   test "streams exec commands to pod and prompts back to process", %{req_pod: req} do
@@ -332,27 +432,29 @@ defmodule KubereqIntegrationTest do
 
     ref = make_ref()
 
-    {:ok, resp} =
-      Kubereq.exec(
-        req,
-        @namespace,
-        pod_name,
-        {self(), ref},
-        params: %{"tty" => true, "stdout" => true, "stdin" => true, "command" => "/bin/sh"}
+    {:ok, pid} =
+      Kubereq.PodExec.start_link(
+        req: req,
+        namespace: @namespace,
+        name: pod_name,
+        into: {self(), ref},
+        tty: true,
+        command: "/bin/sh"
       )
 
-    Response.send_message(resp.body, {:stdin, ~s(echo "foo bar"\n)})
+    assert_receive {^ref, :connected}
+    Kubereq.PodExec.send_stdin(pid, ~s(echo "foo bar"\n))
 
-    result = receive_loop(ref, resp.body, "") |> IO.iodata_to_binary()
+    result = receive_loop(ref, pid, "") |> IO.iodata_to_binary()
     assert result == ~s(/ # echo "foo bar"\r\nfoo bar\r\n/ # )
   end
 
-  defp receive_loop(ref, websocket_response, acc) do
+  defp receive_loop(ref, dest, acc) do
     receive do
-      {^ref, {:stdout, data}} -> receive_loop(ref, websocket_response, [acc, data])
+      {^ref, {:stdout, data}} -> receive_loop(ref, dest, [acc, data])
     after
       500 ->
-        Response.send_message(websocket_response, :close)
+        Kubereq.PodExec.close(dest)
         acc
     end
   end
