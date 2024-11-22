@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.3.2 - 2024-11-22
+
+### Added
+
+- Support for websocket connections to `pods/log` and `pods/exec` subresources [#37](https://github.com/mruoss/kubereq/pull/37)
+
 ## 0.3.1 - 2024-10-24
 
 ### Fixed
