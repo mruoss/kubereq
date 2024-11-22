@@ -6,7 +6,7 @@ defmodule Kubereq.Application do
   @impl true
   def start(_start_type, _start_args) do
     children = [
-      {Registry, keys: :unique, name: Kubereq.Exec}
+      {Registry, keys: :unique, name: Kubereq.Auth.Exec}
     ]
 
     opts = [strategy: :one_for_one, name: Kubereq.Supervisor]

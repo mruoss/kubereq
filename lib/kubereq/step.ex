@@ -46,12 +46,12 @@ defmodule Kubereq.Step do
   def call(req) do
     with %Req.Request{} = req <- Step.Context.call(req),
          %Req.Request{} = req <- Step.Plug.call(req),
+         %Req.Request{} = req <- Step.BaseURL.call(req),
          %Req.Request{} = req <- Step.Operation.call(req),
          %Req.Request{} = req <- Step.Impersonate.call(req),
          %Req.Request{} = req <- Step.Auth.call(req),
          %Req.Request{} = req <- Step.TLS.call(req),
          %Req.Request{} = req <- Step.Compression.call(req),
-         %Req.Request{} = req <- Step.BaseURL.call(req),
          %Req.Request{} = req <- Step.FieldSelector.call(req) do
       Step.LabelSelector.call(req)
     end

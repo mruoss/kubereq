@@ -1,4 +1,4 @@
-defmodule Kubereq.Exec do
+defmodule Kubereq.Auth.Exec do
   @moduledoc false
 
   alias Kubereq.Error.KubeconfError

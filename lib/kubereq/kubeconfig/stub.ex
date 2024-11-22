@@ -97,7 +97,7 @@ defmodule Kubereq.Kubeconfig.Stub do
       raise ArgumentError, "You have to pass the :plugs option to use this step."
     end
 
-    Keyword.validate!(opts, [:plugs])
+    opts
   end
 
   @impl true

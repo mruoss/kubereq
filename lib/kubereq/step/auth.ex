@@ -1,8 +1,8 @@
 defmodule Kubereq.Step.Auth do
   @moduledoc false
 
+  alias Kubereq.Auth.Exec
   alias Kubereq.Error.StepError
-  alias Kubereq.Exec
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t() | {Req.Request.t(), StepError.t()}
   def call(req), do: auth(req, req.options.kubeconfig.current_user)
