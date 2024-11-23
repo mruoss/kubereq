@@ -11,9 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
+### ⚠️ Breaking Changes ⚠️
+
+- `Kubereq.watch/3` and `Kubereq.watch_single/4` now also return `t:Kubereq.response/0`.
+  The stream which was returned directly before is now accessible through the `:body`
+  key of the returned `t:Req.Response.t/0` struct. The `:stream_to` option was removed.
+
+### Chanes
+
+- `Kubereq.wait_until/5` gets by without `Task.async/1`.
+
 ### Added
 
-- Streaming for paginated list operation
+- Streaming for paginated list operation via the `:into` option of `Kubereq.list/3`
+  [#46](https://github.com/mruoss/kubereq/pull/46)
 
 <!--------------------- Don't add new entries after this line --------------------->
 
