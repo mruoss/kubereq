@@ -484,11 +484,11 @@ defmodule Kubereq do
          {:init, false} <- {:init, callback.(List.first(resp.body["items"]) || :deleted)} do
       {:ok, resp} =
         req
-        |> Req.merge(
-          params: [resource_version: resp.body["metadata"]["resourceVersion"]],
+        |> Req.merge(opts)
+        |> watch(namespace,
+          resource_version: resp.body["metadata"]["resourceVersion"],
           receive_timeout: timeout
         )
-        |> watch(namespace)
 
       wait_event_loop(resp.body, callback)
     else
@@ -522,7 +522,14 @@ defmodule Kubereq do
   end
 
   @doc """
-  Watch events of all resources in `namespace`.
+  Watch events of all resources in `namespace`. If `namespace` is `nil`, all
+  namespaces are watched.
+
+  > #### Info {: .tip}
+  >
+  > The Enumerable returned via the response's body blocks the process when run.
+  > Use `Kubereq.Watcher` instead if you want to build a long running process
+  > handling all occurring events.
 
   ### Examples
 
@@ -530,11 +537,19 @@ defmodule Kubereq do
       |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
       |> Kubereq.watch("default")
 
-  Omit the second argument in order to watch events in all namespaces:
+  Omit the `namespace` in order to watch events in all namespaces:
 
       Req.new()
       |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
       |> Kubereq.watch()
+
+  ### Options
+
+    All options described in the moduledoc plus:
+
+      * `:resource_version` - Optional. Resource version to start watching from.
+        Per default, the watcher starts watching from the current
+        resource_version.
 
   """
   @spec watch(
@@ -549,19 +564,9 @@ defmodule Kubereq do
   end
 
   def watch(req, namespace, opts) do
-    req =
-      req
-      |> Req.merge(opts)
-      |> Req.merge(
-        operation: :watch,
-        path_params: [namespace: namespace],
-        into: :self
-      )
-
-    req = update_in(req.options, &Map.put_new(&1, :receive_timeout, :infinity))
-
-    with {:ok, %{status: 200, body: body} = resp} <- Req.get(req, opts) do
-      stream = Kubereq.Stream.transform_to_objects(body)
+    with {:ok, %{status: 200, body: body} = resp} <-
+           Kubereq.Watcher.connect(req, namespace, opts) do
+      stream = Kubereq.Watcher.transform_to_objects(body)
 
       {:ok, %{resp | body: stream}}
     end

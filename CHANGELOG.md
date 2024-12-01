@@ -16,13 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Kubereq.watch/3` and `Kubereq.watch_single/4` now also return `t:Kubereq.response/0`.
   The stream which was returned directly before is now accessible through the `:body`
   key of the returned `t:Req.Response.t/0` struct. The `:stream_to` option was removed.
+  `Kubereq.Watcher` was added for implementing long running watch event handlers.
 
-### Chanes
+### Changes
 
 - `Kubereq.wait_until/5` gets by without `Task.async/1`.
 
 ### Added
 
+- `Kubereq.Watcher` - A behaviour module for implementing a Kubernetes watch event handler.
 - Streaming for paginated list operation via the `:into` option of `Kubereq.list/3`
   [#46](https://github.com/mruoss/kubereq/pull/46)
 
