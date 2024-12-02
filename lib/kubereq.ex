@@ -550,7 +550,6 @@ defmodule Kubereq do
       * `:resource_version` - Optional. Resource version to start watching from.
         Per default, the watcher starts watching from the current
         resource_version.
-
   """
   @spec watch(
           Req.Request.t(),

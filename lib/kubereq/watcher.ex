@@ -1,6 +1,26 @@
 defmodule Kubereq.Watcher do
-  @moduledoc ~S"""
+  @moduledoc """
   A behaviour module for implementing a Kubernetes watch event handler.
+
+  Establishes a watch connection for [efficient detection of changes]
+  [k8s-watch-concept]. All events are passed to `c:handle_event/3`.
+
+  [k8s-watch-concept]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
+
+  ```mermaid
+  sequenceDiagram
+      participant Watcher
+      participant K8s as K8s API Server
+
+      Watcher->>K8s: ?watch=true
+
+      loop K8s Detects Changes
+        K8s ->> Watcher: {:created, %{"kind" => "Pod"}}
+        K8s ->> Watcher: {:modified, %{"kind" => "Pod"}}
+        K8s ->> Watcher: {:deleted, %{"kind" => "Pod"}}
+      end
+
+  ```
 
   ### Example
 
@@ -31,47 +51,68 @@ defmodule Kubereq.Watcher do
 
         @impl Kubereq.Watcher
         def handle_event(:created, pod, state) do
-          Logger.debug("Pod #{pod["metadata"]["name"]} was created.")
+          Logger.debug("Pod \#{pod["metadata"]["name"]} was created.")
           {:ok, state}
         end
 
         @impl Kubereq.Watcher
         def handle_event(:modified, pod, state) do
-          Logger.debug("Pod #{pod["metadata"]["name"]} was modified.")
+          Logger.debug("Pod \#{pod["metadata"]["name"]} was modified.")
           {:ok, state}
         end
 
         @impl Kubereq.Watcher
         def handle_event(:deleted, pod, state) do
-          Logger.debug("Pod #{pod["metadata"]["name"]} was deleted.")
+          Logger.debug("Pod \#{pod["metadata"]["name"]} was deleted.")
           {:ok, state}
         end
       end
 
   """
-
   require Logger
 
   @type event_type :: :created | :modified | :deleted
 
+  @doc """
+  Called upon successfully establishing the connection. It is passed the
+  `t:Req.Response.t` returned by the request and the `init_args` passed to
+  `Kubereq.Watcher.start_link/4`.
+
+  This callback is comparable to the GenServer's `c:GenServer.init/1` callback
+  and is expected to return the initial state of the server.
+  """
   @callback connected(resp :: Req.Response.t(), init_arg :: term()) ::
               {:ok, state}
               | {:ok, state, timeout()}
               | {:stop, reason :: any()}
             when state: any()
 
-  @callback handle_event(event_type :: event_type(), watch_event :: map(), state :: term()) ::
+  @doc """
+  Called for every event detected for the resources watched on the Kubernetes
+  cluster. It is passed the `t:event_type` (one of `:created`, `:modified` or
+  `:deleted`), the `object` (resource) the event occurred on and the current
+    `state`.
+  """
+  @callback handle_event(event_type :: event_type(), object :: map(), state :: term()) ::
               {:ok, new_state}
               | {:ok, new_state, timeout()}
               | {:stop, reason, new_state}
             when new_state: term(), reason: term()
 
+  @doc """
+  Similar to GenServer's `c:GenServer.handle_info/2`, called for messages sent
+  to the process.
+  """
   @callback handle_info(msg :: :timeout | term(), state :: term()) ::
               {:ok, new_state}
               | {:ok, new_state, timeout()}
               | {:stop, reason, new_state}
             when new_state: term(), reason: term()
 
+  @doc """
+  Similar to GenServer's `c:GenServer.terminate/2`, called then the watcher is
+  terminated.
+  """
   @callback terminate(reason, state :: term()) :: term()
             when reason: :normal | :shutdown | {:shutdown, term()} | term()
 
@@ -147,6 +188,17 @@ defmodule Kubereq.Watcher do
     end
   end
 
+  @doc """
+  Starts a watcher process linked to the current process.
+
+  Once the watcher is started, the `c:connected/2` function of the given module is
+  called with `resp` (HTTP respnose of the connection request) and `init_arg`
+  as its arguments to initialize the server.
+
+  ### Arguments
+
+  `req`, `namespace` and `init_arg` are forwarded to `connect/3`.
+  """
   def start_link(module, req, namespace \\ nil, init_arg \\ []) do
     {:ok, spawn_link(fn -> init(module, req, namespace, init_arg) end)}
   end
@@ -174,6 +226,18 @@ defmodule Kubereq.Watcher do
     end
   end
 
+  @doc """
+  Establish a watch connection to the API Server for the given `req`.
+  If `namespace` is nil, all namespaces are watched.
+
+  ### Options
+
+  All options described in `Kubereq`'s moduledoc plus:
+
+    * `:resource_version` - Optional. Resource version to start watching from.
+      Per default, the watcher starts watching from the current
+      resource_version.
+  """
   def connect(req, namespace, opts \\ []) do
     {resource_version, opts} =
       Keyword.pop_lazy(opts, :resource_version, fn ->
@@ -246,6 +310,7 @@ defmodule Kubereq.Watcher do
     end
   end
 
+  @doc false
   def handle_chunk(module, :done, state) do
     req = Req.merge(state.req, params: [resourceVersion: state.resource_version])
 
@@ -296,6 +361,7 @@ defmodule Kubereq.Watcher do
     exit(reason)
   end
 
+  @doc false
   @spec transform_to_objects(Enumerable.t(binary())) :: Enumerable.t(map())
   def transform_to_objects(stream) do
     stream
