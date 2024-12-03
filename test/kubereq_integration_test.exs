@@ -176,6 +176,27 @@ defmodule KubereqIntegrationTest do
     assert example_config_2["metadata"]["name"] in resource_names
   end
 
+  @tag :wip
+  test "Stream list of resources", %{
+    req_cm: req,
+    example_config_1: example_config_1,
+    example_config_2: example_config_2,
+    test_id: test_id
+  } do
+    {:ok, _resp} = Kubereq.create(req, example_config_1)
+    {:ok, _resp} = Kubereq.create(req, example_config_2)
+
+    {:ok, resp} =
+      Kubereq.list(req, @namespace, label_selectors: "test=kubereq-#{test_id}", into: :stream)
+
+    items = resp.body |> Enum.to_list()
+    assert is_list(items)
+    assert 2 = length(items)
+    resource_names = Enum.map(items, & &1["metadata"]["name"])
+    assert example_config_1["metadata"]["name"] in resource_names
+    assert example_config_2["metadata"]["name"] in resource_names
+  end
+
   test "JSON patch", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert "bar" == resp.body["data"]["foo"]
