@@ -168,7 +168,9 @@ defmodule Kubereq do
         path_params: [
           namespace: resource["metadata"]["namespace"],
           name: resource["metadata"]["name"]
-        ]
+        ],
+        api_version: resource["apiVersion"],
+        kind: resource["kind"]
       )
 
     Req.request(req, options)
@@ -339,7 +341,9 @@ defmodule Kubereq do
         path_params: [
           namespace: get_in(resource, ~w(metadata namespace)),
           name: get_in(resource, ~w(metadata name))
-        ]
+        ],
+        api_version: resource["apiVersion"],
+        kind: resource["kind"]
       )
 
     Req.request(req, options)
@@ -379,7 +383,9 @@ defmodule Kubereq do
           name: get_in(resource, ~w(metadata name))
         ],
         params: [fieldManager: field_manager, force: force],
-        json: resource
+        json: resource,
+        api_version: resource["apiVersion"],
+        kind: resource["kind"]
       )
 
     Req.request(req, options)

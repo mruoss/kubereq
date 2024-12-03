@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changes
 
 - `Kubereq.wait_until/5` gets by without `Task.async/1`.
+- `Kubereq.create/3`, `Kubereq.update/3` and `Kubereq.apply/5`: Extract `api_verison` and `kind` from passed resource.
 
 ### Added
 
