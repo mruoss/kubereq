@@ -107,8 +107,6 @@ defmodule Kubereq do
   @type response() :: {:ok, Req.Response.t()} | {:error, Exception.t()}
   @type namespace() :: String.t() | nil
   @type subresource() :: String.t() | nil
-  @type watch_response :: {:ok, Enumerable.t(map())} | {:ok, Task.t()} | {:error, Exception.t()}
-  @typep do_watch_response :: {:ok, Enumerable.t(map())} | {:error, Exception.t()}
 
   @deprecated "Use Kubereq.attach/2"
   @spec new(kubeconfig :: Kubereq.Kubeconfig.t()) :: Req.Request.t()
@@ -130,8 +128,7 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new() |> Kubereq.attach()
-      %Request.Req{...}
+      Req.new() |> Kubereq.attach()
 
   ### Options
 
@@ -158,10 +155,9 @@ defmodule Kubereq do
 
   ### Example
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.create(resource)
-      {:ok, %Req.Response{status: 201, body: %{...}}}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.create(resource)
   """
   @spec create(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
   def create(req, resource, opts \\ []) do
@@ -185,10 +181,9 @@ defmodule Kubereq do
 
   ### Example
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.get("default", "foo")
-      {:ok, %Req.Response{status: 200, body: %{...}}}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.get("default", "foo")
   """
   @spec get(
           Req.Request.t(),
@@ -213,10 +208,29 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.list("default")
-      {:ok, %Req.Response{status: 200, body: %{...}}}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.list("default")
+
+  ### Options
+
+  All options described in the moduledoc plus:
+
+    * `:into` - Optional. When set to `:stream`, the underlying list request to
+      Kubernetes is paginated using `:limit` and `:continue` query parameters.
+
+    * `:limit` - Optional. Used with `into: :stream`; defines the limit query
+      parameter used for pagination.
+
+  ### Async Response through the `into: :stream`
+
+  With `into: :srteam`, the response's `:body` is a `Stream`
+
+      {:ok, resp} =
+        Req.new()
+        |> Kubereq.attach(api_version: "v1", kind: "Pod")
+        |> Kubereq.list(into: :stream)
+      resp.body |> Stream.take(25) |> Enum.to_list()
   """
   @spec list(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
   def list(req, namespace \\ nil, opts \\ [])
@@ -224,6 +238,16 @@ defmodule Kubereq do
   def list(req, opts, []) when is_list(opts), do: list(req, nil, opts)
 
   def list(req, namespace, opts) do
+    case Keyword.pop(opts, :into) do
+      {nil, opts} ->
+        do_list(req, namespace, opts)
+
+      {:stream, opts} ->
+        do_list_into_stream(req, namespace, opts)
+    end
+  end
+
+  defp do_list(req, namespace, opts) do
     options =
       Keyword.merge(opts,
         operation: :list,
@@ -235,15 +259,30 @@ defmodule Kubereq do
     Req.request(req, options)
   end
 
+  defp do_list_into_stream(req, namespace, opts) do
+    params = opts[:params] || []
+    params = Keyword.put_new(params, :limit, 10)
+
+    get_items = fn continue ->
+      params = Keyword.put(params, :continue, continue)
+      opts = Keyword.put(opts, :params, params)
+      do_list(req, namespace, opts)
+    end
+
+    with {:ok, %{status: 200, body: body} = resp} <- get_items.(nil) do
+      stream = Kubereq.Stream.create_list_stream(body, get_items)
+      {:ok, %{resp | body: stream}}
+    end
+  end
+
   @doc """
   Deletes the `resource` or its `subresource` from the cluster.
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.delete("default", "foo")
-      {:ok, %Req.Response{status: 200, body: %{...}}}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.delete("default", "foo")
   """
   @spec delete(
           Req.Request.t(),
@@ -268,11 +307,9 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.delete_all("default", label_selectors: [{"app", "my-app"}])
-      {:ok, %Req.Response{status: 200, body: %{...}}}
-
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.delete_all("default", label_selectors: [{"app", "my-app"}])
   """
   @spec delete_all(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: response()
   def delete_all(req, namespace \\ nil, opts \\ [])
@@ -289,10 +326,9 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.update(resource)
-      {:ok, %Req.Response{status: 200, body: %{...}}}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.update(resource)
   """
   @spec update(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
   def update(req, resource, opts \\ []) do
@@ -317,10 +353,9 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.apply(resource)
-      {:ok, %Req.Response{status: 200, body: %{...}}}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.apply(resource)
   """
   @spec apply(
           Req.Request.t(),
@@ -356,10 +391,9 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.json_patch(%{...}, "default", "foo")
-      {:ok, %Req.Response{...}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.json_patch(%{...}, "default", "foo")
   """
   @spec json_patch(
           Req.Request.t(),
@@ -391,11 +425,9 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.merge_patch(%{...}, "default", "foo")
-      {:ok, %Req.Response{...}
-
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.merge_patch(%{...}, "default", "foo")
   """
   @spec merge_patch(
           Req.Request.t(),
@@ -429,7 +461,7 @@ defmodule Kubereq do
 
   All options described in the moduledoc plus:
 
-  * `timeout` - Timeout in ms after function terminates with `{:error, :timeout}`
+  * `:timeout` - Timeout in ms after function terminates with `{:error, :timeout}`
   """
   @spec wait_until(
           Req.Request.t(),
@@ -446,26 +478,19 @@ defmodule Kubereq do
 
   def wait_until(req, namespace, name, callback, opts) do
     {timeout, opts} = Keyword.pop(opts, :timeout, 10_000)
-    ref = make_ref()
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
 
     with {:ok, resp} <- list(req, namespace, opts),
          {:init, false} <- {:init, callback.(List.first(resp.body["items"]) || :deleted)} do
-      {:ok, watch_task} =
-        watch(
-          req,
-          namespace,
-          Keyword.merge(opts,
-            resource_version: resp.body["metadata"]["resourceVersion"],
-            stream_to: {self(), ref}
-          )
+      {:ok, resp} =
+        req
+        |> Req.merge(opts)
+        |> watch(namespace,
+          resource_version: resp.body["metadata"]["resourceVersion"],
+          receive_timeout: timeout
         )
 
-      timer = Process.send_after(self(), {ref, :timeout}, timeout)
-      result = wait_event_loop(ref, callback)
-      Task.shutdown(watch_task)
-      Process.cancel_timer(timer)
-      result
+      wait_event_loop(resp.body, callback)
     else
       {:init, true} -> :ok
       {:init, {:error, error}} -> {:error, error}
@@ -473,54 +498,64 @@ defmodule Kubereq do
     end
   end
 
-  defp wait_event_loop(ref, callback) do
-    receive do
-      {^ref, %{"type" => "DELETED"}} ->
+  defp wait_event_loop(stream, callback) do
+    stream
+    |> Enum.reduce_while(nil, fn
+      %{"type" => "DELETED"}, _acc ->
         case callback.(:deleted) do
-          true -> :ok
-          false -> :ok
-          :ok -> :ok
-          {:error, error} -> {:error, error}
+          true -> {:halt, :ok}
+          false -> {:halt, :ok}
+          :ok -> {:halt, :ok}
+          {:error, error} -> {:halt, {:error, error}}
         end
 
-      {^ref, %{"object" => resource}} ->
-        if callback.(resource), do: :ok, else: wait_event_loop(ref, callback)
-
-      {^ref, :timeout} ->
+      %{"object" => resource}, _acc ->
+        if callback.(resource), do: {:halt, :ok}, else: {:cont, nil}
+    end)
+  rescue
+    e in Mint.TransportError ->
+      if e.reason == :timeout do
         {:error, :watch_timeout}
-    end
+      else
+        reraise e, __STACKTRACE__
+      end
   end
 
   @doc """
-  Watch events of all resources in `namespace`.
+  Watch events of all resources in `namespace`. If `namespace` is `nil`, all
+  namespaces are watched.
+
+  > #### Info {: .tip}
+  >
+  > The Enumerable returned via the response's body blocks the process when run.
+  > Use `Kubereq.Watcher` instead if you want to build a long running process
+  > handling all occurring events.
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.watch("default")
-      {:ok, #Function<60.48886818/2 in Stream.transform/3>}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch("default")
 
-  Omit the second argument in order to watch events in all namespaces:
+  Omit the `namespace` in order to watch events in all namespaces:
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.watch()
-      {:ok, #Function<60.48886818/2 in Stream.transform/3>}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch()
 
   ### Options
 
-  All options described in the moduledoc plus:
+    All options described in the moduledoc plus:
 
-  * `:resource_version` - If given, starts to stream from the given `resourceVersion` of the resource list. Otherwise starts streaming from HEAD.
-  * `:stream_to` - If set to a `pid`, streams events to the given pid. If set to `{pid, ref}`, the messages are in the form `{ref, event}`.
+      * `:resource_version` - Optional. Resource version to start watching from.
+        Per default, the watcher starts watching from the current
+        resource_version.
   """
   @spec watch(
           Req.Request.t(),
           namespace :: namespace(),
           opts :: keyword()
-        ) ::
-          watch_response()
+        ) :: response()
   def watch(req, namespace \\ nil, opts \\ [])
 
   def watch(req, opts, []) when is_list(opts) do
@@ -528,21 +563,11 @@ defmodule Kubereq do
   end
 
   def watch(req, namespace, opts) do
-    {resource_version, opts} = Keyword.pop(opts, :resource_version)
-    {steam_to, opts} = Keyword.pop(opts, :stream_to)
-    do_watch = fn -> do_watch(req, namespace, resource_version, opts) end
+    with {:ok, %{status: 200, body: body} = resp} <-
+           Kubereq.Watcher.connect(req, namespace, opts) do
+      stream = Kubereq.Watcher.transform_to_objects(body)
 
-    case steam_to do
-      nil ->
-        do_watch.()
-
-      {pid, ref} ->
-        task = watch_create_task(do_watch, &send(pid, {ref, &1}))
-        {:ok, task}
-
-      pid ->
-        task = watch_create_task(do_watch, &send(pid, &1))
-        {:ok, task}
+      {:ok, %{resp | body: stream}}
     end
   end
 
@@ -552,37 +577,23 @@ defmodule Kubereq do
 
   ### Examples
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.watch_single("default")
-      {:ok, #Function<60.48886818/2 in Stream.transform/3>}
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch_single("default")
 
   Omit the second argument in order to watch events in all namespaces:
 
-      iex> Req.new()
-      ...> |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
-      ...> |> Kubereq.watch_single()
-      {:ok, #Function<60.48886818/2 in Stream.transform/3>}
-
-  ### Options
-
-  All options described in the moduledoc plus:
-
-  * `:stream_to` - If set to a `pid`, streams events to the given pid. If set to `{pid, ref}`, the messages are in the form `{ref, event}`
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch_single()
 
   """
   @spec watch_single(
           Req.Request.t(),
           namespace :: namespace(),
-          name :: String.t()
-        ) ::
-          watch_response()
-  @spec watch_single(
-          Req.Request.t(),
-          namespace :: namespace(),
           name :: String.t(),
           opts :: keyword()
-        ) :: watch_response()
+        ) :: response()
   def watch_single(req, namespace \\ nil, name, opts \\ [])
 
   def watch_single(req, name, opts, []) when is_list(opts) do
@@ -592,61 +603,6 @@ defmodule Kubereq do
   def watch_single(req, namespace, name, opts) do
     opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
     watch(req, namespace, opts)
-  end
-
-  @spec watch_create_task(
-          (-> do_watch_response()),
-          (map() -> any())
-        ) :: Task.t()
-  defp watch_create_task(do_watch_callback, send_callback) do
-    Task.async(fn ->
-      case do_watch_callback.() do
-        {:ok, stream} ->
-          stream
-          |> Stream.map(send_callback)
-          |> Stream.run()
-
-        {:error, error} ->
-          send_callback.({:error, error})
-      end
-    end)
-  end
-
-  @spec do_watch(
-          Req.Request.t(),
-          namespace :: namespace(),
-          resource_version :: integer() | String.t(),
-          opts :: keyword()
-        ) :: do_watch_response()
-  defp do_watch(req, namespace, nil, opts) do
-    with {:ok, resp} <- list(req, namespace, opts) do
-      resource_version = resp.body["metadata"]["resourceVersion"]
-      do_watch(req, namespace, resource_version, opts)
-    end
-  end
-
-  defp do_watch(req, namespace, resource_version, opts) do
-    with {:ok, resp} <-
-           Req.get(req,
-             operation: :watch,
-             field_selectors: opts[:field_selectors],
-             label_selectors: opts[:label_selectors],
-             path_params: [namespace: namespace],
-             receive_timeout: :infinity,
-             into: :self,
-             params: [
-               watch: "1",
-               allowWatchBookmarks: "1",
-               resourceVersion: resource_version
-             ]
-           ) do
-      stream =
-        resp
-        |> Kubereq.Watch.create_stream()
-        |> Kubereq.Watch.transform_to_objects()
-
-      {:ok, stream}
-    end
   end
 
   @doc """

@@ -1,5 +1,5 @@
 defmodule KubereqIntegrationTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   @moduletag :integration
 
@@ -176,6 +176,27 @@ defmodule KubereqIntegrationTest do
     assert example_config_2["metadata"]["name"] in resource_names
   end
 
+  @tag :wip
+  test "Stream list of resources", %{
+    req_cm: req,
+    example_config_1: example_config_1,
+    example_config_2: example_config_2,
+    test_id: test_id
+  } do
+    {:ok, _resp} = Kubereq.create(req, example_config_1)
+    {:ok, _resp} = Kubereq.create(req, example_config_2)
+
+    {:ok, resp} =
+      Kubereq.list(req, @namespace, label_selectors: "test=kubereq-#{test_id}", into: :stream)
+
+    items = resp.body |> Enum.to_list()
+    assert is_list(items)
+    assert 2 = length(items)
+    resource_names = Enum.map(items, & &1["metadata"]["name"])
+    assert example_config_1["metadata"]["name"] in resource_names
+    assert example_config_2["metadata"]["name"] in resource_names
+  end
+
   test "JSON patch", %{req_cm: req, example_config_1: example_config_1} do
     {:ok, resp} = Kubereq.create(req, example_config_1)
     assert "bar" == resp.body["data"]["foo"]
@@ -219,24 +240,22 @@ defmodule KubereqIntegrationTest do
     example_config_1: example_config_1
   } do
     cm_name = example_config_1["metadata"]["name"]
-    ref = make_ref()
-    Kubereq.watch(req, @namespace, stream_to: {self(), ref})
-
-    # Give the async watcher process time to start:
-    Process.sleep(10)
+    {:ok, resp} = Kubereq.watch(req, @namespace)
 
     {:ok, %{status: 201}} = Kubereq.create(req, example_config_1)
     {:ok, %{status: 200}} = Kubereq.update(req, put_in(example_config_1, ~w(data foo), "baz"))
     {:ok, %{status: 200}} = Kubereq.delete(req, @namespace, cm_name)
 
-    assert_receive {^ref,
-                    %{"type" => "ADDED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+    events = resp.body |> Stream.take(3) |> Enum.to_list()
 
-    assert_receive {^ref,
-                    %{"type" => "MODIFIED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+    assert %{"type" => "ADDED", "object" => %{"metadata" => %{"name" => ^cm_name}}} =
+             Enum.at(events, 0)
 
-    assert_receive {^ref,
-                    %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+    assert %{"type" => "MODIFIED", "object" => %{"metadata" => %{"name" => ^cm_name}}} =
+             Enum.at(events, 1)
+
+    assert %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}} =
+             Enum.at(events, 2)
   end
 
   test "Watch a single resource of a kind in a namespace", %{
@@ -244,24 +263,22 @@ defmodule KubereqIntegrationTest do
     example_config_1: example_config_1
   } do
     cm_name = example_config_1["metadata"]["name"]
-    ref = make_ref()
-    Kubereq.watch_single(req, @namespace, cm_name, stream_to: {self(), ref})
-
-    # Give the async watcher process time to start:
-    Process.sleep(10)
+    {:ok, resp} = Kubereq.watch_single(req, @namespace, cm_name)
 
     {:ok, %{status: 201}} = Kubereq.create(req, example_config_1)
     {:ok, %{status: 200}} = Kubereq.update(req, put_in(example_config_1, ~w(data foo), "baz"))
     {:ok, %{status: 200}} = Kubereq.delete(req, @namespace, cm_name)
 
-    assert_receive {^ref,
-                    %{"type" => "ADDED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+    events = resp.body |> Stream.take(3) |> Enum.to_list()
 
-    assert_receive {^ref,
-                    %{"type" => "MODIFIED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+    assert %{"type" => "ADDED", "object" => %{"metadata" => %{"name" => ^cm_name}}} =
+             Enum.at(events, 0)
 
-    assert_receive {^ref,
-                    %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}}}
+    assert %{"type" => "MODIFIED", "object" => %{"metadata" => %{"name" => ^cm_name}}} =
+             Enum.at(events, 1)
+
+    assert %{"type" => "DELETED", "object" => %{"metadata" => %{"name" => ^cm_name}}} =
+             Enum.at(events, 2)
   end
 
   test "receives pod logs synchronously from pod container", %{req_pod: req} do

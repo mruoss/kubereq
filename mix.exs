@@ -13,7 +13,7 @@ defmodule Kubereq.MixProject do
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
-      deps: deps(),
+      deps: deps(Mix.env()),
       docs: docs(),
       preferred_cli_env: cli_env(),
       package: package(),
@@ -34,11 +34,20 @@ defmodule Kubereq.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
-  defp deps do
+  defp deps(:test) do
+    # Until a new version with https://github.com/wojtekmach/req/issues/440 is
+    # released
+    [{:req, github: "wojtekmach/req", env: :test, only: :test} | deps(:all)]
+  end
+
+  defp deps(env) when env not in [:test, :all] do
+    [{:req, "~> 0.5.0"} | deps(:all)]
+  end
+
+  defp deps(:all) do
     [
       {:jason, "~> 1.0"},
       {:pluggable, "~> 1.0"},
-      {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.0"},
       {:mint, "~> 1.0"},
       {:mint_web_socket, "~> 1.0"},
@@ -82,7 +91,8 @@ defmodule Kubereq.MixProject do
           Kubereq.Step.FieldSelector,
           Kubereq.Step.LabelSelector
         ]
-      ]
+      ],
+      before_closing_head_tag: &before_closing_head_tag/1
     ]
   end
 
@@ -127,4 +137,33 @@ defmodule Kubereq.MixProject do
       plt_file: {:no_warn, "priv/plts/#{@app}.plt"}
     ]
   end
+
+  defp before_closing_head_tag(:html) do
+    """
+    <script>
+      function mermaidLoaded() {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: document.body.className.includes("dark") ? "dark" : "default"
+        });
+        let id = 0;
+        for (const codeEl of document.querySelectorAll("pre code.mermaid")) {
+          const preEl = codeEl.parentElement;
+          const graphDefinition = codeEl.textContent;
+          const graphEl = document.createElement("div");
+          const graphId = "mermaid-graph-" + id++;
+          mermaid.render(graphId, graphDefinition).then(({svg, bindFunctions}) => {
+            graphEl.innerHTML = svg;
+            bindFunctions?.(graphEl);
+            preEl.insertAdjacentElement("afterend", graphEl);
+            preEl.remove();
+          });
+        }
+      }
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mermaid@10.2.3/dist/mermaid.min.js" onload="mermaidLoaded();"></script>
+    """
+  end
+
+  defp before_closing_head_tag(_), do: ""
 end
