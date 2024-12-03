@@ -199,12 +199,12 @@ defmodule Kubereq.Watcher do
 
   `req`, `namespace` and `init_arg` are forwarded to `connect/3`.
   """
-  def start_link(module, req, namespace \\ nil, init_arg \\ []) do
-    {:ok, spawn_link(fn -> init(module, req, namespace, init_arg) end)}
+  def start_link(module, req, namespace \\ nil, opts \\ [], init_arg \\ []) do
+    {:ok, spawn_link(fn -> init(module, req, namespace, opts, init_arg) end)}
   end
 
-  defp init(module, req, namespace, init_arg) do
-    case Kubereq.Watcher.connect(req, namespace, init_arg) do
+  defp init(module, req, namespace, opts, init_arg) do
+    case Kubereq.Watcher.connect(req, namespace, opts) do
       {:ok, %{status: 200} = resp} ->
         state =
           struct(__MODULE__,
@@ -213,8 +213,9 @@ defmodule Kubereq.Watcher do
             mint_ref: resp.body.ref
           )
 
-        module.connected(resp, init_arg)
-        |> process_result(state, module)
+        state =
+          module.connected(resp, init_arg)
+          |> process_result(state, module)
 
         loop(state, module)
 
@@ -316,7 +317,7 @@ defmodule Kubereq.Watcher do
 
     case connect(req, state.namespace) do
       {:ok, %{status: 200} = resp} ->
-        struct(__MODULE__, mint_ref: resp.body.ref)
+        struct(state, mint_ref: resp.body.ref)
 
       {:error, error} ->
         stop(module, error, state.user_state)

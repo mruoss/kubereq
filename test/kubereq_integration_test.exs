@@ -260,7 +260,6 @@ defmodule KubereqIntegrationTest do
              Enum.at(events, 2)
   end
 
-  @tag :wip
   test "receives pod logs synchronously from pod container", %{req_pod: req} do
     pod_name = "example-pod-#{:rand.uniform(10_000)}"
     log_stmt = "foo bar"

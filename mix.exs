@@ -13,7 +13,7 @@ defmodule Kubereq.MixProject do
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
-      deps: deps(),
+      deps: deps(Mix.env()),
       docs: docs(),
       preferred_cli_env: cli_env(),
       package: package(),
@@ -34,11 +34,20 @@ defmodule Kubereq.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
-  defp deps do
+  defp deps(:test) do
+    # Until a new version with https://github.com/wojtekmach/req/issues/440 is
+    # released
+    [{:req, github: "wojtekmach/req", env: :test, only: :test} | deps(:all)]
+  end
+
+  defp deps(env) when env not in [:test, :all] do
+    [{:req, "~> 0.5.0"} | deps(:all)]
+  end
+
+  defp deps(:all) do
     [
       {:jason, "~> 1.0"},
       {:pluggable, "~> 1.0"},
-      {:req, "~> 0.5.0"},
       {:yaml_elixir, "~> 2.0"},
       {:mint, "~> 1.0"},
       {:mint_web_socket, "~> 1.0"},
