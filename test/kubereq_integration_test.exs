@@ -85,6 +85,16 @@ defmodule KubereqIntegrationTest do
     on_exit(fn ->
       Kubereq.delete_all(req_cm, @namespace, label_selectors: [{"app", "kubereq"}])
       Kubereq.delete_all(req_pod, @namespace, label_selectors: [{"app", "kubereq"}])
+
+      Kubereq.delete_all(req_pod, @namespace,
+        label_selectors: [{"app", "kubereq"}],
+        kind: "ServiceAccount"
+      )
+
+      Kubereq.delete_all(req_pod, @namespace,
+        label_selectors: [{"app", "kubereq"}],
+        kind: "Secret"
+      )
     end)
 
     [example_config_1: example_config_1, example_config_2: example_config_2, test_id: test_id]
@@ -176,7 +186,6 @@ defmodule KubereqIntegrationTest do
     assert example_config_2["metadata"]["name"] in resource_names
   end
 
-  @tag :wip
   test "Stream list of resources", %{
     req_cm: req,
     example_config_1: example_config_1,
@@ -474,5 +483,106 @@ defmodule KubereqIntegrationTest do
         Kubereq.PodExec.close(dest)
         acc
     end
+  end
+
+  test "returns true if authorized", %{kubeconfig: kubeconfig} do
+    test_id = :rand.uniform(10_000)
+    sa_name = "test-sa-#{test_id}"
+    req = Req.new() |> Kubereq.attach(kubeconfig: kubeconfig)
+
+    {:ok, _} =
+      Kubereq.apply(req, ~y"""
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: #{sa_name}
+          namespace: #{@namespace}
+          labels:
+            test: kubereq-#{test_id}
+            app: kubereq
+      """)
+
+    {:ok, _} =
+      Kubereq.apply(req, ~y"""
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: cm-reader
+        namespace: #{@namespace}
+      rules:
+      - apiGroups: [""]
+        resources: ["configmaps"]
+        verbs: ["get", "list", "watch"]
+      """)
+
+    {:ok, _} =
+      Kubereq.apply(req, ~y"""
+        apiVersion: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        metadata:
+          name: cm-reader
+          namespace: #{@namespace}
+        subjects:
+        - kind: ServiceAccount
+          name: #{sa_name}
+          namespace: #{@namespace}
+        roleRef:
+          kind: Role
+          name: cm-reader
+          apiGroup: rbac.authorization.k8s.io
+      """)
+
+    {:ok, %{status: 201, body: _}} =
+      Kubereq.apply(
+        req,
+        ~y"""
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: #{sa_name}-token
+          namespace: #{@namespace}
+          annotations:
+            kubernetes.io/service-account.name: #{sa_name}
+          labels:
+            test: kubereq-#{test_id}
+            app: kubereq
+        type: kubernetes.io/service-account-token
+        """
+      )
+
+    :ok =
+      Kubereq.wait_until(
+        req,
+        @namespace,
+        "#{sa_name}-token",
+        fn secret ->
+          !is_nil(secret["data"])
+        end,
+        kind: "Secret"
+      )
+
+    {:ok, %{status: 200, body: body}} =
+      Kubereq.get(req, @namespace, "#{sa_name}-token", kind: "Secret")
+
+    req =
+      put_in(req.options.kubeconfig.current_user, %{
+        "token" => Base.decode64!(body["data"]["token"])
+      })
+
+    assert true ==
+             Kubereq.can_i?(req,
+               verb: "get",
+               version: "v1",
+               resource: "configmaps",
+               namespace: @namespace
+             )
+
+    assert false ==
+             Kubereq.can_i?(req,
+               verb: "get",
+               version: "v1",
+               resource: "pods",
+               namespace: @namespace
+             )
   end
 end

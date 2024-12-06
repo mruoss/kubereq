@@ -151,6 +151,81 @@ defmodule Kubereq do
   end
 
   @doc """
+  Checks whether the authenticated user is authorized to perform a specific
+  action.
+
+  Creates a [SelfSubjectAccessReview][SelfSubjectAccessReview] resource with
+  the given `attributes` and sends it to the API Server. It returns
+  `.status.allowed` from the result (boolean). In case of an error, the
+  function returns `false`.
+
+  ### Attributes
+
+  `attributes` is a Keyword list that allows the following keywords (See
+  attribute descriptions on the  [Kubernetes documentation][SelfSubjectAccessReview])
+
+  [SelfSubjectAccessReview]: https://kubernetes.io/docs/reference/kubernetes-api/authorization-resources/self-subject-access-review-v1/
+
+  ### Examples
+
+  Check for a specific action (`GET`) on a specific resource (`pods` in namespace
+  `default`):
+
+      Req.new()
+      |> Kubereq.attach()
+      |> Kubereq.can_i?(verb: "get", version: "v1", resource: "pods", namespace: "default")
+
+  Check for a specific path on the API Server:
+
+      Req.new()
+      |> Kubereq.attach()
+      |> Kubereq.can_i?(verb: "get", path: "apis/apiregistration.k8s.io/v1")
+
+  """
+  def can_i?(req, attributes, opts \\ []) do
+    spec =
+      if attributes[:path] do
+        non_resource_attributes =
+          attributes
+          |> Keyword.validate!([:verb, :path])
+          |> Enum.into(%{})
+
+        %{"resourceAttributes" => non_resource_attributes}
+      else
+        resource_attributes =
+          attributes
+          |> Keyword.validate!([
+            :name,
+            :namespace,
+            :resource,
+            :subresource,
+            :fieldSelector,
+            :labelSelector,
+            :verb,
+            :version,
+            :group
+          ])
+          |> Enum.into(%{})
+
+        %{"resourceAttributes" => resource_attributes}
+      end
+
+    access_review = %{
+      "apiVersion" => "authorization.k8s.io/v1",
+      "kind" => "SelfSubjectAccessReview",
+      "spec" => spec
+    }
+
+    case create(req, access_review, opts) do
+      {:ok, %Req.Response{status: 201, body: body}} ->
+        body["status"]["allowed"] == true
+
+      _other ->
+        false
+    end
+  end
+
+  @doc """
   Create the `resource` or its `subresource` on the cluster.
 
   ### Example
