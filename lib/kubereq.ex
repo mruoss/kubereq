@@ -182,6 +182,7 @@ defmodule Kubereq do
       |> Kubereq.can_i?(verb: "get", path: "apis/apiregistration.k8s.io/v1")
 
   """
+  @spec can_i?(Req.Request.t(), Keyword.t(), Keyword.t()) :: boolean()
   def can_i?(req, attributes, opts \\ []) do
     spec =
       if attributes[:path] do
