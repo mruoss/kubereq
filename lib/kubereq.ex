@@ -227,7 +227,8 @@ defmodule Kubereq do
   end
 
   @doc """
-  Create the `resource` or its `subresource` on the cluster.
+  Create the `resource` or its `subresource` on the cluster and returns a
+  response or an error.
 
   ### Example
 
@@ -237,6 +238,25 @@ defmodule Kubereq do
   """
   @spec create(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
   def create(req, resource, opts \\ []) do
+    do_create(req, resource, opts, &Req.request/2)
+  end
+
+  @doc """
+  Create the `resource` or its `subresource` on the cluster and returns a
+  response or raises an error.
+
+  ### Example
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.create!(resource)
+  """
+  @spec create!(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: Req.Response.t()
+  def create!(req, resource, opts \\ []) do
+    do_create(req, resource, opts, &Req.request!/2)
+  end
+
+  defp do_create(req, resource, opts, request_function) do
     options =
       Keyword.merge(opts,
         operation: :create,
@@ -249,11 +269,12 @@ defmodule Kubereq do
         kind: resource["kind"]
       )
 
-    Req.request(req, options)
+    request_function.(req, options)
   end
 
   @doc """
-  Get the resource `name` in `namespace` or its `subresource`.
+  Get the resource `name` in `namespace` or its `subresource`. and returns a
+  response or an error
 
   Omit `namespace` to get cluster resources.
 
@@ -275,14 +296,45 @@ defmodule Kubereq do
   def get(req, name, opts, []) when is_list(opts), do: get(req, nil, name, opts)
 
   def get(req, namespace, name, opts) do
-    options =
-      Keyword.merge(opts, operation: :get, path_params: [namespace: namespace, name: name])
-
-    Req.request(req, options)
+    do_get(req, namespace, name, opts, &Req.request/2)
   end
 
   @doc """
-  Get a resource list.
+  Get the resource `name` in `namespace` or its `subresource`. and returns a
+  response or raises an error
+
+  Omit `namespace` to get cluster resources.
+
+  ### Example
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.get!("default", "foo")
+  """
+  @spec get!(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: Keyword.t() | nil
+        ) ::
+          Req.Response.t()
+  def get!(req, namespace \\ nil, name, opts \\ [])
+
+  def get!(req, name, opts, []) when is_list(opts), do: get!(req, nil, name, opts)
+
+  def get!(req, namespace, name, opts) do
+    do_get(req, namespace, name, opts, &Req.request!/2)
+  end
+
+  defp do_get(req, namespace, name, opts, request_function) do
+    options =
+      Keyword.merge(opts, operation: :get, path_params: [namespace: namespace, name: name])
+
+    request_function.(req, options)
+  end
+
+  @doc """
+  Get a resource list. Returns a response or an error.
 
   ### Examples
 
@@ -316,16 +368,58 @@ defmodule Kubereq do
   def list(req, opts, []) when is_list(opts), do: list(req, nil, opts)
 
   def list(req, namespace, opts) do
+    do_list(req, namespace, opts, &Req.request/2)
+  end
+
+  @doc """
+  Get a resource list. Returns a response or raises an error.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.list!("default")
+
+  ### Options
+
+  All options described in the moduledoc plus:
+
+    * `:into` - Optional. When set to `:stream`, the underlying list request to
+      Kubernetes is paginated using `:limit` and `:continue` query parameters.
+
+    * `:limit` - Optional. Used with `into: :stream`; defines the limit query
+      parameter used for pagination.
+
+  ### Async Response through the `into: :stream`
+
+  With `into: :srteam`, the response's `:body` is a `Stream`
+
+      {:ok, resp} =
+        Req.new()
+        |> Kubereq.attach(api_version: "v1", kind: "Pod")
+        |> Kubereq.list!(into: :stream)
+      resp.body |> Stream.take(25) |> Enum.to_list()
+  """
+  @spec list!(Req.Request.t(), namespace :: namespace(), opts :: keyword()) :: Req.Response.t()
+  def list!(req, namespace \\ nil, opts \\ [])
+
+  def list!(req, opts, []) when is_list(opts), do: list!(req, nil, opts)
+
+  def list!(req, namespace, opts) do
+    do_list(req, namespace, opts, &Req.request!/2)
+  end
+
+  defp do_list(req, namespace, opts, request_function) do
     case Keyword.pop(opts, :into) do
       {nil, opts} ->
-        do_list(req, namespace, opts)
+        do_list_single_request(req, namespace, opts, request_function)
 
       {:stream, opts} ->
-        do_list_into_stream(req, namespace, opts)
+        do_list_into_stream(req, namespace, opts, request_function)
     end
   end
 
-  defp do_list(req, namespace, opts) do
+  defp do_list_single_request(req, namespace, opts, request_function) do
     options =
       Keyword.merge(opts,
         operation: :list,
@@ -334,17 +428,17 @@ defmodule Kubereq do
         path_params: [namespace: namespace]
       )
 
-    Req.request(req, options)
+    request_function.(req, options)
   end
 
-  defp do_list_into_stream(req, namespace, opts) do
+  defp do_list_into_stream(req, namespace, opts, request_function) do
     params = opts[:params] || []
     params = Keyword.put_new(params, :limit, 10)
 
     get_items = fn continue ->
       params = Keyword.put(params, :continue, continue)
       opts = Keyword.put(opts, :params, params)
-      do_list(req, namespace, opts)
+      do_list(req, namespace, opts, request_function)
     end
 
     with {:ok, %{status: 200, body: body} = resp} <- get_items.(nil) do
@@ -354,7 +448,8 @@ defmodule Kubereq do
   end
 
   @doc """
-  Deletes the `resource` or its `subresource` from the cluster.
+  Deletes the `resource` or its `subresource` from the cluster. Returns a
+  response or an error.
 
   ### Examples
 
@@ -374,14 +469,43 @@ defmodule Kubereq do
   def delete(req, name, opts, []) when is_list(opts), do: delete(req, nil, name, opts)
 
   def delete(req, namespace, name, opts) do
-    options =
-      Keyword.merge(opts, operation: :delete, path_params: [namespace: namespace, name: name])
-
-    Req.request(req, options)
+    do_delete(req, namespace, name, opts, &Req.request/2)
   end
 
   @doc """
-  Deletes all resources in the given namespace.
+  Deletes the `resource` or its `subresource` from the cluster. Returns a
+  response or raises an error.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.delete!("default", "foo")
+  """
+  @spec delete!(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: Keyword.t()
+        ) ::
+          Req.Response.t()
+  def delete!(req, namespace \\ nil, name, opts \\ [])
+
+  def delete!(req, name, opts, []) when is_list(opts), do: delete!(req, nil, name, opts)
+
+  def delete!(req, namespace, name, opts) do
+    do_delete(req, namespace, name, opts, &Req.request!/2)
+  end
+
+  defp do_delete(req, namespace, name, opts, request_function) do
+    options =
+      Keyword.merge(opts, operation: :delete, path_params: [namespace: namespace, name: name])
+
+    request_function.(req, options)
+  end
+
+  @doc """
+  Deletes all resources in the given namespace. Returns a response or an error.
 
   ### Examples
 
@@ -395,12 +519,36 @@ defmodule Kubereq do
   def delete_all(req, opts, []) when is_list(opts), do: delete_all(req, nil, opts)
 
   def delete_all(req, namespace, opts) do
-    options = Keyword.merge(opts, operation: :delete_all, path_params: [namespace: namespace])
-    Req.request(req, options)
+    do_delete_all(req, namespace, opts, &Req.request/2)
   end
 
   @doc """
-  Updates the given `resource`.
+  Deletes all resources in the given namespace. Returns a response or raises an
+  error.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.delete_all!("default", label_selectors: [{"app", "my-app"}])
+  """
+  @spec delete_all!(Req.Request.t(), namespace :: namespace(), opts :: keyword()) ::
+          Req.Response.t()
+  def delete_all!(req, namespace \\ nil, opts \\ [])
+
+  def delete_all!(req, opts, []) when is_list(opts), do: delete_all!(req, nil, opts)
+
+  def delete_all!(req, namespace, opts) do
+    do_delete_all(req, namespace, opts, &Req.request!/2)
+  end
+
+  defp do_delete_all(req, namespace, opts, request_function) do
+    options = Keyword.merge(opts, operation: :delete_all, path_params: [namespace: namespace])
+    request_function.(req, options)
+  end
+
+  @doc """
+  Updates the given `resource`. Returns a response or an error.
 
   ### Examples
 
@@ -410,6 +558,24 @@ defmodule Kubereq do
   """
   @spec update(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: response()
   def update(req, resource, opts \\ []) do
+    do_update(req, resource, opts, &Req.request/2)
+  end
+
+  @doc """
+  Updates the given `resource`. Returns a response or raises an error.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.update!(resource)
+  """
+  @spec update!(Req.Request.t(), resource :: map(), opts :: Keyword.t()) :: Req.Response.t()
+  def update!(req, resource, opts \\ []) do
+    do_update(req, resource, opts, &Req.request!/2)
+  end
+
+  defp do_update(req, resource, opts, request_function) do
     options =
       Keyword.merge(opts,
         operation: :update,
@@ -422,11 +588,12 @@ defmodule Kubereq do
         kind: resource["kind"]
       )
 
-    Req.request(req, options)
+    request_function.(req, options)
   end
 
   @doc """
-  Applies the given `resource` using a Server-Side-Apply Patch.
+  Applies the given `resource` using a Server-Side-Apply Patch. Returns a
+  response or an error.
 
   See the [documentation](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
   for a documentation on `field_manager` and `force` arguments.
@@ -451,6 +618,40 @@ defmodule Kubereq do
   end
 
   def apply(req, resource, field_manager, force, opts) do
+    do_apply(req, resource, field_manager, force, opts, &Req.request/2)
+  end
+
+  @doc """
+  Applies the given `resource` using a Server-Side-Apply Patch. Returns a
+  response or raises an error.
+
+  See the [documentation](https://kubernetes.io/docs/reference/using-api/server-side-apply/)
+  for a documentation on `field_manager` and `force` arguments.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.apply!(resource)
+  """
+  @spec apply!(
+          Req.Request.t(),
+          resource :: map(),
+          field_manager :: binary(),
+          force :: boolean(),
+          opts :: Keyword.t()
+        ) :: Req.Response.t()
+  def apply!(req, resource, field_manager \\ "Elixir", force \\ true, opts \\ [])
+
+  def apply!(req, resource, opts, _, _) when is_list(opts) do
+    apply!(req, resource, "Elixir", true, opts)
+  end
+
+  def apply!(req, resource, field_manager, force, opts) do
+    do_apply(req, resource, field_manager, force, opts, &Req.request!/2)
+  end
+
+  defp do_apply(req, resource, field_manager, force, opts, request_function) do
     options =
       Keyword.merge(opts,
         operation: :apply,
@@ -464,12 +665,12 @@ defmodule Kubereq do
         kind: resource["kind"]
       )
 
-    Req.request(req, options)
+    request_function.(req, options)
   end
 
   @doc """
   Patches the resource `name`in `namespace` or its `subresource` using the given
-  `json_patch`.
+  `json_patch`. Returns a response or an error.
 
   ### Examples
 
@@ -491,6 +692,37 @@ defmodule Kubereq do
   end
 
   def json_patch(req, json_patch, namespace, name, opts) do
+    do_json_patch(req, json_patch, namespace, name, opts, &Req.request/2)
+  end
+
+  @doc """
+  Patches the resource `name`in `namespace` or its `subresource` using the given
+  `json_patch`. Returns a response or raises an error.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.json_patch!(%{...}, "default", "foo")
+  """
+  @spec json_patch!(
+          Req.Request.t(),
+          json_patch :: map(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: Keyword.t()
+        ) :: Req.Response.t()
+  def json_patch!(req, json_patch, namespace \\ nil, name, opts \\ [])
+
+  def json_patch!(req, json_patch, name, opts, []) when is_list(opts) do
+    json_patch!(req, json_patch, nil, name, opts)
+  end
+
+  def json_patch!(req, json_patch, namespace, name, opts) do
+    do_json_patch(req, json_patch, namespace, name, opts, &Req.request!/2)
+  end
+
+  defp do_json_patch(req, json_patch, namespace, name, opts, request_function) do
     options =
       Keyword.merge(opts,
         operation: :json_patch,
@@ -498,12 +730,12 @@ defmodule Kubereq do
         json: json_patch
       )
 
-    Req.request(req, options)
+    request_function.(req, options)
   end
 
   @doc """
   Patches the resource `name`in `namespace` or its `subresource` using the given
-  `merge_patch`.
+  `merge_patch`. Returns a response or an error.
 
   ### Examples
 
@@ -525,6 +757,37 @@ defmodule Kubereq do
   end
 
   def merge_patch(req, merge_patch, namespace, name, opts) do
+    do_merge_patch(req, merge_patch, namespace, name, opts, &Req.request/2)
+  end
+
+  @doc """
+  Patches the resource `name`in `namespace` or its `subresource` using the given
+  `merge_patch`. Returns a response or raises an error.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.merge_patch!(%{...}, "default", "foo")
+  """
+  @spec merge_patch!(
+          Req.Request.t(),
+          merge_patch :: String.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: Keyword.t()
+        ) :: Req.Response.t()
+  def merge_patch!(req, merge_patch, namespace \\ nil, name, opts \\ [])
+
+  def merge_patch!(req, merge_patch, name, opts, []) when is_list(opts) do
+    merge_patch!(req, merge_patch, nil, name, opts)
+  end
+
+  def merge_patch!(req, merge_patch, namespace, name, opts) do
+    do_merge_patch(req, merge_patch, namespace, name, opts, &Req.request!/2)
+  end
+
+  defp do_merge_patch(req, merge_patch, namespace, name, opts, request_function) do
     options =
       Keyword.merge(opts,
         operation: :merge_patch,
@@ -532,7 +795,7 @@ defmodule Kubereq do
         json: merge_patch
       )
 
-    Req.request(req, options)
+    request_function.(req, options)
   end
 
   @doc """
@@ -605,7 +868,7 @@ defmodule Kubereq do
 
   @doc """
   Watch events of all resources in `namespace`. If `namespace` is `nil`, all
-  namespaces are watched.
+  namespaces are watched. Returns a response or an error.
 
   > #### Info {: .tip}
   >
@@ -654,8 +917,56 @@ defmodule Kubereq do
   end
 
   @doc """
-  Watch events of a single resources `name`in `namespace`.
-  The `req` struct should have been created using `Kubereq.new/1`.
+  Watch events of all resources in `namespace`. If `namespace` is `nil`, all
+  namespaces are watched. Returns a response or raises an error.
+
+  > #### Info {: .tip}
+  >
+  > The Enumerable returned via the response's body blocks the process when run.
+  > Use `Kubereq.Watcher` instead if you want to build a long running process
+  > handling all occurring events.
+
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch!("default")
+
+  Omit the `namespace` in order to watch events in all namespaces:
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch!()
+
+  ### Options
+
+    All options described in the moduledoc plus:
+
+      * `:resource_version` - Optional. Resource version to start watching from.
+        Per default, the watcher starts watching from the current
+        resource_version.
+  """
+  @spec watch!(
+          Req.Request.t(),
+          namespace :: namespace(),
+          opts :: keyword()
+        ) :: Req.Response.t()
+  def watch!(req, namespace \\ nil, opts \\ [])
+
+  def watch!(req, opts, []) when is_list(opts) do
+    watch!(req, nil, opts)
+  end
+
+  def watch!(req, namespace, opts) do
+    case watch(req, namespace, opts) do
+      {:ok, resp} -> resp
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Watch events of a single resources `name`in `namespace`. Returns a response
+  or an error.
 
   ### Examples
 
@@ -683,13 +994,50 @@ defmodule Kubereq do
   end
 
   def watch_single(req, namespace, name, opts) do
-    opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
-    watch(req, namespace, opts)
+    do_watch_single(req, namespace, name, opts, &watch/3)
   end
 
   @doc """
+  Watch events of a single resources `name`in `namespace`. Returns a response
+  or raises an error.
 
+  ### Examples
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch_single!("default")
+
+  Omit the second argument in order to watch events in all namespaces:
+
+      Req.new()
+      |> Kubereq.attach(api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.watch_single!()
+
+  """
+  @spec watch_single!(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: keyword()
+        ) :: Req.Response.t()
+  def watch_single!(req, namespace \\ nil, name, opts \\ [])
+
+  def watch_single!(req, name, opts, []) when is_list(opts) do
+    watch_single!(req, nil, name, opts)
+  end
+
+  def watch_single!(req, namespace, name, opts) do
+    do_watch_single(req, namespace, name, opts, &watch!/3)
+  end
+
+  defp do_watch_single(req, namespace, name, opts, watch_function) do
+    opts = Keyword.put(opts, :field_selectors, [{"metadata.name", name}])
+    watch_function.(req, namespace, opts)
+  end
+
+  @doc """
   Opens a websocket to the given container and streams logs from it.
+  Returns a response or an error.
 
   > #### Info {: .tip}
   >
@@ -751,6 +1099,77 @@ defmodule Kubereq do
         ) ::
           response()
   def logs(req, namespace, name, opts \\ []) do
+    do_logs(req, namespace, name, opts, &Req.request/2)
+  end
+
+  @doc """
+  Opens a websocket to the given container and streams logs from it.
+  Returns a response or raises an error.
+
+  > #### Info {: .tip}
+  >
+  > This function blocks the process. It should be used to retrieve a finite
+  > set of logs from a container. If you want to follow logs, use
+  > `Kubereq.PodLogs` combined with the `:follow` options instead.
+
+  ## Examples
+
+      req = Req.new() |> Kubereq.attach()
+      {:ok, resp} =
+        Kubereq.logs!(req, "default", "my-pod",
+          container: "main-container",
+          tailLines: 5
+        )
+      Enum.each(resp.body, &IO.inspect/1)
+
+  ## Options
+
+  * `:container` - The container for which to stream logs. Defaults to only
+    container if there is one container in the pod. Fails if not defined for
+    pods with multiple pods.
+  * `:follow` - Follow the log stream of the pod. If this is set to `true`,
+    the connection is kept alive which blocks current the process. If you need
+    this, you probably want to use `Kubereq.PodLogs` instead. Defaults to
+    `false`.
+  * `:insecureSkipTLSVerifyBackend` - insecureSkipTLSVerifyBackend indicates
+    that the apiserver should not confirm the validity of the serving
+    certificate of the backend it is connecting to. This will make the HTTPS
+    connection between the apiserver and the backend insecure. This means the
+    apiserver cannot verify the log data it is receiving came from the real
+    kubelet. If the kubelet is configured to verify the apiserver's TLS
+    credentials, it does not mean the connection to the real kubelet is
+    vulnerable to a man in the middle attack (e.g. an attacker could not
+    intercept the actual log data coming from the real kubelet).
+  * `:limitBytes` - If set, the number of bytes to read from the server before
+    terminating the log output. This may not display a complete final line of
+    logging, and may return slightly more or slightly less than the specified
+    limit.
+  * `:pretty` - If 'true', then the output is pretty printed.
+  * `:previous` - Return previous t  erminated container logs. Defaults to
+    `false`.
+  * `:sinceSeconds` - A relative time in seconds before the current time from
+    which to show logs. If this value precedes the time a pod was started,
+    only logs since the pod start will be returned. If this value is in the
+    future, no logs will be returned. Only one of sinceSeconds or sinceTime
+    may be specified.
+  * `:tailLines` - If set, the number of lines from the end of the logs to
+    show. If not specified, logs are shown from the creation of the container
+    or sinceSeconds or sinceTime
+  * `:timestamps` - If true, add an RFC3339 or RFC3339Nano timestamp at the
+    beginning of every line of log output. Defaults to `false`.
+  """
+  @spec logs!(
+          Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: Keyword.t() | nil
+        ) ::
+          Req.Response.t()
+  def logs!(req, namespace, name, opts \\ []) do
+    do_logs(req, namespace, name, opts, &Req.request!/2)
+  end
+
+  defp do_logs(req, namespace, name, opts, request_function) do
     opts =
       opts
       |> Keyword.merge(
@@ -762,12 +1181,13 @@ defmodule Kubereq do
       )
       |> Kubereq.Connect.args_to_opts()
 
-    Req.request(req, opts)
+    request_function.(req, opts)
   end
 
   @doc ~S"""
 
   Opens a websocket to the given Pod and executes a command on it.
+  Returns a response or an error.
 
   > #### Info {: .tip}
   >
@@ -809,6 +1229,58 @@ defmodule Kubereq do
         ) ::
           response()
   def exec(req, namespace, name, opts \\ []) do
+    do_exec(req, namespace, name, opts, &Req.request/2)
+  end
+
+  @doc ~S"""
+
+  Opens a websocket to the given Pod and executes a command on it.
+  Returns a response or raises an error.
+
+  > #### Info {: .tip}
+  >
+  > This function blocks the process. It should be used to execute commands
+  > which terminate eventually. To implement a shell with a long running
+  > connection, use `Kubereq.PodExec` with `tty: true` instead.
+
+  ## Examples
+      {:ok, resp} =
+        Kubereq.exec!(req, "defaault", "my-pod",
+          container: "main-container",
+          command: "/bin/sh",
+          command: "-c",
+          command: "echo foobar",
+          stdout: true,
+          stderr: true
+        )
+      Enum.each(resp.body, &IO.inspect/1)
+      # {:stdout, ""}
+      # {:stdout, "foobar\n"}
+
+  ## Options
+
+  * `:container` (optional) - The container to connect to. Defaults to only
+    container if there is one container in the pod. Fails if not defined for
+    pods with multiple pods.
+  * `:command` - Command is the remote command to execute. Not executed within a shell.
+  * `:stdin` (optional) - Redirect the standard input stream of the pod for this call. Defaults to `true`.
+  * `:stdin` (optional) - Redirect the standard output stream of the pod for this call. Defaults to `true`.
+  * `:stderr` (optional) - Redirect the standard error stream of the pod for this call. Defaults to `true`.
+  * `:tty` (optional) - If `true` indicates that a tty will be allocated for the exec call. Defaults to `false`.
+
+  """
+  @spec exec!(
+          req :: Req.Request.t(),
+          namespace :: namespace(),
+          name :: String.t(),
+          opts :: Keyword.t() | nil
+        ) ::
+          Req.Response.t()
+  def exec!(req, namespace, name, opts \\ []) do
+    do_exec(req, namespace, name, opts, &Req.request!/2)
+  end
+
+  defp do_exec(req, namespace, name, opts, request_function) do
     opts =
       opts
       |> Keyword.merge(
@@ -820,6 +1292,6 @@ defmodule Kubereq do
       )
       |> Kubereq.Connect.args_to_opts()
 
-    Req.request(req, opts)
+    request_function.(req, opts)
   end
 end
