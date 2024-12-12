@@ -25,8 +25,7 @@ defmodule Kubereq.Watcher do
   ### Example
 
   When started, `Kubereq.Watcher` establishes a watch connection to the API
-  Server. When connected, `c:connected/2` is called which can be compared to the
-  GenServer's `c:GenServer.init/1`.
+  Server.
 
   For every watch event, `c:handle_event/3` is then called with the `t:type`,
   `object` and `state`.
@@ -44,7 +43,7 @@ defmodule Kubereq.Watcher do
         end
 
         @impl Kubereq.Watcher
-        def connected(_resp, _init_arg) do
+        def init(init_arg) do
           initial_state = %{}
           {:ok, initial_state}
         end
@@ -52,40 +51,33 @@ defmodule Kubereq.Watcher do
         @impl Kubereq.Watcher
         def handle_event(:created, pod, state) do
           Logger.debug("Pod \#{pod["metadata"]["name"]} was created.")
-          {:ok, state}
+          {:noreply, state}
         end
 
         @impl Kubereq.Watcher
         def handle_event(:modified, pod, state) do
           Logger.debug("Pod \#{pod["metadata"]["name"]} was modified.")
-          {:ok, state}
+          {:noreply, state}
         end
 
         @impl Kubereq.Watcher
         def handle_event(:deleted, pod, state) do
           Logger.debug("Pod \#{pod["metadata"]["name"]} was deleted.")
-          {:ok, state}
+          {:noreply, state}
         end
       end
 
   """
+  use GenServer
+
   require Logger
 
   @type event_type :: :created | :modified | :deleted
 
   @doc """
-  Called upon successfully establishing the connection. It is passed the
-  `t:Req.Response.t` returned by the request and the `init_args` passed to
-  `Kubereq.Watcher.start_link/4`.
-
-  This callback is comparable to the GenServer's `c:GenServer.init/1` callback
-  and is expected to return the initial state of the server.
+  Called when the server is started but before connection is establised.
   """
-  @callback connected(resp :: Req.Response.t(), init_arg :: term()) ::
-              {:ok, state}
-              | {:ok, state, timeout()}
-              | {:stop, reason :: any()}
-            when state: any()
+  @callback init(init_arg :: term()) :: {:ok, state :: any()} | {:stop, reason :: any()}
 
   @doc """
   Called for every event detected for the resources watched on the Kubernetes
@@ -94,8 +86,8 @@ defmodule Kubereq.Watcher do
     `state`.
   """
   @callback handle_event(event_type :: event_type(), object :: map(), state :: term()) ::
-              {:ok, new_state}
-              | {:ok, new_state, timeout()}
+              {:noreply, new_state}
+              | {:noreply, new_state, timeout()}
               | {:stop, reason, new_state}
             when new_state: term(), reason: term()
 
@@ -104,8 +96,9 @@ defmodule Kubereq.Watcher do
   to the process.
   """
   @callback handle_info(msg :: :timeout | term(), state :: term()) ::
-              {:ok, new_state}
-              | {:ok, new_state, timeout()}
+              {:noreply, new_state}
+              | {:noreply, new_state,
+                 timeout() | :hibernate | {:continue, continue_arg :: term()}}
               | {:stop, reason, new_state}
             when new_state: term(), reason: term()
 
@@ -117,13 +110,13 @@ defmodule Kubereq.Watcher do
             when reason: :normal | :shutdown | {:shutdown, term()} | term()
 
   defstruct [
+    :module,
     :req,
     :req_opts,
     :namespace,
     :mint_ref,
     :user_state,
     :resource_version,
-    timeout: :infinity,
     remainder: ""
   ]
 
@@ -151,7 +144,7 @@ defmodule Kubereq.Watcher do
       defoverridable child_spec: 1
 
       @doc false
-      def connected(_resp, _init_arg), do: nil
+      def init(_init_arg), do: {:ok, nil}
 
       @doc false
       def handle_info(msg, state) do
@@ -177,53 +170,58 @@ defmodule Kubereq.Watcher do
           }
         )
 
-        {:ok, state}
+        {:noreply, state}
       end
 
       @doc false
       def terminate(_reason, _state), do: :ok
 
       # Allow overriding handle_event
-      defoverridable connected: 2, handle_info: 2, terminate: 2
+      defoverridable init: 1, handle_info: 2, terminate: 2
     end
   end
 
   @doc """
   Starts a watcher process linked to the current process.
 
-  Once the watcher is started, the `c:connected/2` function of the given module is
-  called with `resp` (HTTP respnose of the connection request) and `init_arg`
-  as its arguments to initialize the server.
+  Once the watcher is started, the `c:init/1` function of the given module is
+  called. After that, the watch connection is established.
 
   ### Arguments
 
   `req`, `namespace` and `init_arg` are forwarded to `connect/3`.
   """
   def start_link(module, req, namespace \\ nil, opts \\ [], init_arg \\ []) do
-    {:ok, spawn_link(fn -> init(module, req, namespace, opts, init_arg) end)}
+    GenServer.start_link(Kubereq.Watcher, %{
+      module: module,
+      namespace: namespace,
+      req: req,
+      opts: opts,
+      init_arg: init_arg
+    })
   end
 
-  defp init(module, req, namespace, opts, init_arg) do
+  @impl true
+  def init(%{module: module, namespace: namespace, req: req, opts: opts, init_arg: init_arg}) do
+    result = module.init(init_arg)
+
     case Kubereq.Watcher.connect(req, namespace, opts) do
       {:ok, %{status: 200} = resp} ->
         state =
-          struct(__MODULE__,
+          struct!(__MODULE__,
+            module: module,
             req: req,
             namespace: namespace,
             mint_ref: resp.body.ref
           )
 
-        state =
-          module.connected(resp, init_arg)
-          |> process_result(state, module)
-
-        loop(state, module)
+        process_result(result, state, :ok)
 
       {:error, error} ->
-        exit(error)
+        {:stop, error}
 
       {:ok, %{status: status}} ->
-        exit("Failed to establish connection: HTTP Status #{status}")
+        {:stop, "Failed to establish connection: HTTP Status #{status}"}
     end
   end
 
@@ -276,90 +274,75 @@ defmodule Kubereq.Watcher do
     Req.request(req)
   end
 
-  defp loop(state, module) do
-    ref = state.mint_ref
-    timeout = state.timeout
-
-    new_state =
-      receive do
-        {^ref, data} ->
-          handle_chunk(module, data, state)
-
-        other ->
-          module.handle_info(other, state.user_state)
-          |> process_result(state, module)
-      after
-        timeout ->
-          module.handle_info(:timeout, state.user_state)
-          |> process_result(state, module)
-      end
-
-    loop(new_state, module)
+  @impl true
+  def handle_continue(continue_arg, state) do
+    state.module.handle_continue(continue_arg, state.user_state)
   end
 
-  defp process_result(result, state, module) do
-    case result do
-      {:ok, new_user_state} ->
-        %{state | user_state: new_user_state, timeout: :infinity}
+  @impl true
+  def handle_info({ref, chunk}, %{mint_ref: ref} = state) do
+    handle_chunk(chunk, state)
+  end
 
-      {:ok, new_user_state, timeout} ->
-        %{state | user_state: new_user_state, timeout: timeout}
+  def handle_info(message, state) do
+    state.module.handle_info(message, state.user_state)
+    |> process_result(state, :noreply)
+  end
+
+  defp process_result(result, state, ok_atom) do
+    case result do
+      {^ok_atom, new_user_state, timeout_continue} ->
+        {ok_atom, %{state | user_state: new_user_state}, timeout_continue}
+
+      {^ok_atom, new_user_state} ->
+        {ok_atom, %{state | user_state: new_user_state}}
 
       {:stop, reason, new_user_state} ->
-        module.terminate(reason, new_user_state)
-        exit(reason)
+        {:stop, reason, %{state | user_state: new_user_state}}
     end
   end
 
   @doc false
-  def handle_chunk(module, :done, state) do
+  def handle_chunk(:done, state) do
     req = Req.merge(state.req, params: [resourceVersion: state.resource_version])
 
     case connect(req, state.namespace) do
       {:ok, %{status: 200} = resp} ->
-        struct(state, mint_ref: resp.body.ref)
+        {:noreply, struct(state, mint_ref: resp.body.ref)}
 
       {:error, error} ->
-        stop(module, error, state.user_state)
+        {:stop, error, state}
     end
   end
 
-  def handle_chunk(module, {:data, data}, state) do
+  def handle_chunk({:data, data}, state) do
     {lines, remainder} = chunks_to_lines(data, state.remainder)
-    state = %{state | remainder: remainder, timeout: :infinity}
+    state = %{state | remainder: remainder}
 
-    Enum.reduce(lines, state, fn
-      line, state ->
+    Enum.reduce_while(lines, {:noreply, state}, fn
+      line, acc ->
+        # acc = {:noreply, state} or {:noreply, state, timeout}
+        state = elem(acc, 1)
+
         event = Jason.decode!(line)
         state = %{state | resource_version: event["object"]["metdata"]["resourceVersion"]}
 
-        case handle_event(module, event, state.user_state) do
-          {:ok, new_user_state} ->
-            %{state | user_state: new_user_state}
-
-          {:ok, new_user_state, timeout} ->
-            %{state | user_state: new_user_state, timeout: timeout}
-
-          {:stop, reason, new_user_state} ->
-            stop(module, reason, new_user_state)
+        case event |> handle_event(state) |> process_result(state, :noreply) do
+          {:stop, _reason, _new_user_state} = result -> {:halt, result}
+          result -> {:cont, result}
         end
     end)
   end
 
-  defp handle_event(module, event, user_state) do
+  defp handle_event(event, state) do
     %{"type" => type, "object" => object} = event
 
     case type do
-      "ADDED" -> module.handle_event(:added, object, user_state)
-      "MODIFIED" -> module.handle_event(:modified, object, user_state)
-      "DELETED" -> module.handle_event(:deleted, object, user_state)
-      "BOOKMARK" -> {:ok, user_state}
+      "ADDED" -> state.module.handle_event(:added, object, state.user_state)
+      "MODIFIED" -> state.module.handle_event(:modified, object, state.user_state)
+      "DELETED" -> state.module.handle_event(:deleted, object, state.user_state)
+      "BOOKMARK" -> {:noreply, state.user_state}
     end
-  end
-
-  defp stop(module, reason, user_state) do
-    module.terminate(reason, user_state)
-    exit(reason)
   end
 
   @doc false
@@ -389,5 +372,10 @@ defmodule Kubereq.Watcher do
       {:ok, object} ->
         [object]
     end
+  end
+
+  @impl true
+  def terminate(reason, state) do
+    state.module.terminate(reason, state.user_state)
   end
 end

@@ -13,23 +13,23 @@ defmodule Kubereq.WatcherTest do
     end
 
     @impl true
-    def connected(_resp, init_arg) do
+    def init(init_arg) do
       dest = Keyword.fetch!(init_arg, :dest)
       ref = Keyword.fetch!(init_arg, :ref)
-      send(dest, {ref, :connected})
+      Req.Test.allow(:k8s_cluster, dest, self())
       {:ok, %{dest: dest, ref: ref}}
     end
 
     @impl true
     def handle_event(event_type, object, state) do
       send(state.dest, {state.ref, event_type, object})
-      {:ok, state}
+      {:noreply, state}
     end
 
     @impl true
     def handle_info(message, state) do
       send(state.dest, {state.ref, :message, message})
-      {:ok, state}
+      {:noreply, state}
     end
   end
 
@@ -46,13 +46,10 @@ defmodule Kubereq.WatcherTest do
     pid =
       start_link_supervised!({TestWatcher, req: req, dest: self(), ref: ref}, restart: :temporary)
 
-    Req.Test.allow(:k8s_cluster, self(), pid)
-
     %{ref: ref, watcher: pid}
   end
 
-  test "calls connected/2 callback", %{ref: ref} do
-    assert_receive({^ref, :connected}, 500, "connected/2 callback wasn't called.")
+  test "calls handle_event/3 callback", %{ref: ref} do
     assert_receive({^ref, :added, _object}, 500, "handle_event/3 wasn't called for type :added.")
 
     assert_receive(
