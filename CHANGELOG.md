@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Kubereq.Watcher` - A behaviour module for implementing a Kubernetes watch event handler.
 - Streaming for paginated list operation via the `:into` option of `Kubereq.list/3`
   [#46](https://github.com/mruoss/kubereq/pull/46)
-- `Kubereq.can_i/3` - Checks whether the authenticated user is authorized to perform a specific action.
+- `Kubereq.can_i?/3` - Checks whether the authenticated user is authorized to perform a specific action.
 - Error raising variants for all functions in `Kubereq` except `Kubereq.wait_until/5`.
 
 ## 0.3.2 - 2024-11-22
