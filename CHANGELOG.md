@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
+<!--------------------- Don't add new entries after this line --------------------->
+
+## 0.4.0 - 2024-12-13
+
 ### ⚠️ Breaking Changes ⚠️
 
 - `Kubereq.watch/3` and `Kubereq.watch_single/4` now also return `t:Kubereq.response/0`.
@@ -30,8 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#46](https://github.com/mruoss/kubereq/pull/46)
 - `Kubereq.can_i/3` - Checks whether the authenticated user is authorized to perform a specific action.
 - Error raising variants for all functions in `Kubereq` except `Kubereq.wait_until/5`.
-
-<!--------------------- Don't add new entries after this line --------------------->
 
 ## 0.3.2 - 2024-11-22
 
