@@ -26,7 +26,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "EndpointSlice" => "apis/discovery.k8s.io/v1/namespaces/:namespace/endpointslices/:name",
       "Endpoints" => "api/v1/namespaces/:namespace/endpoints/:name",
       "Event" => "apis/events.k8s.io/v1/namespaces/:namespace/events/:name",
-      "FlowSchema" => "apis/flowcontrol.apiserver.k8s.io/v1beta3/flowschemas/:name",
+      "FlowSchema" => "apis/flowcontrol.apiserver.k8s.io/v1/flowschemas/:name",
       "HorizontalPodAutoscaler" =>
         "apis/autoscaling/v1/namespaces/:namespace/horizontalpodautoscalers/:name",
       "IPAddress" => "apis/networking.k8s.io/v1beta1/ipaddresses/:name",
@@ -35,10 +35,14 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "Job" => "apis/batch/v1/namespaces/:namespace/jobs/:name",
       "Lease" => "apis/coordination.k8s.io/v1/namespaces/:namespace/leases/:name",
       "LeaseCandidate" =>
-        "apis/coordination.k8s.io/v1alpha1/namespaces/:namespace/leasecandidates/:name",
+        "apis/coordination.k8s.io/v1alpha2/namespaces/:namespace/leasecandidates/:name",
       "LimitRange" => "api/v1/namespaces/:namespace/limitranges/:name",
       "LocalSubjectAccessReview" =>
         "apis/authorization.k8s.io/v1/namespaces/:namespace/localsubjectaccessreviews/:name",
+      "MutatingAdmissionPolicy" =>
+        "apis/admissionregistration.k8s.io/v1alpha1/mutatingadmissionpolicies/:name",
+      "MutatingAdmissionPolicyBinding" =>
+        "apis/admissionregistration.k8s.io/v1alpha1/mutatingadmissionpolicybindings/:name",
       "MutatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/:name",
       "Namespace" => "api/v1/namespaces/:name",
@@ -48,12 +52,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "PersistentVolumeClaim" => "api/v1/namespaces/:namespace/persistentvolumeclaims/:name",
       "Pod" => "api/v1/namespaces/:namespace/pods/:name",
       "PodDisruptionBudget" => "apis/policy/v1/namespaces/:namespace/poddisruptionbudgets/:name",
-      "PodSchedulingContext" =>
-        "apis/resource.k8s.io/v1alpha3/namespaces/:namespace/podschedulingcontexts/:name",
       "PodTemplate" => "api/v1/namespaces/:namespace/podtemplates/:name",
       "PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
       "PriorityLevelConfiguration" =>
-        "apis/flowcontrol.apiserver.k8s.io/v1beta3/prioritylevelconfigurations/:name",
+        "apis/flowcontrol.apiserver.k8s.io/v1/prioritylevelconfigurations/:name",
       "ReplicaSet" => "apis/apps/v1/namespaces/:namespace/replicasets/:name",
       "ReplicationController" => "api/v1/namespaces/:namespace/replicationcontrollers/:name",
       "ResourceClaim" =>
@@ -68,7 +70,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "RuntimeClass" => "apis/node.k8s.io/v1/runtimeclasses/:name",
       "Secret" => "api/v1/namespaces/:namespace/secrets/:name",
       "SelfSubjectAccessReview" => "apis/authorization.k8s.io/v1/selfsubjectaccessreviews/:name",
-      "SelfSubjectReview" => "apis/authentication.k8s.io/v1alpha1/selfsubjectreviews/:name",
+      "SelfSubjectReview" => "apis/authentication.k8s.io/v1beta1/selfsubjectreviews/:name",
       "SelfSubjectRulesReview" => "apis/authorization.k8s.io/v1/selfsubjectrulesreviews/:name",
       "Service" => "api/v1/namespaces/:namespace/services/:name",
       "ServiceAccount" => "api/v1/namespaces/:namespace/serviceaccounts/:name",
@@ -81,9 +83,9 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "SubjectAccessReview" => "apis/authorization.k8s.io/v1/subjectaccessreviews/:name",
       "TokenReview" => "apis/authentication.k8s.io/v1/tokenreviews/:name",
       "ValidatingAdmissionPolicy" =>
-        "apis/admissionregistration.k8s.io/v1alpha1/validatingadmissionpolicies/:name",
+        "apis/admissionregistration.k8s.io/v1beta1/validatingadmissionpolicies/:name",
       "ValidatingAdmissionPolicyBinding" =>
-        "apis/admissionregistration.k8s.io/v1alpha1/validatingadmissionpolicybindings/:name",
+        "apis/admissionregistration.k8s.io/v1beta1/validatingadmissionpolicybindings/:name",
       "ValidatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations/:name",
       "VolumeAttachment" => "apis/storage.k8s.io/v1/volumeattachments/:name",
@@ -96,10 +98,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/admissionregistration.k8s.io/v1/validatingadmissionpolicybindings/:name",
       "admissionregistration.k8s.io/v1/ValidatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations/:name",
-      "admissionregistration.k8s.io/v1alpha1/ValidatingAdmissionPolicy" =>
-        "apis/admissionregistration.k8s.io/v1alpha1/validatingadmissionpolicies/:name",
-      "admissionregistration.k8s.io/v1alpha1/ValidatingAdmissionPolicyBinding" =>
-        "apis/admissionregistration.k8s.io/v1alpha1/validatingadmissionpolicybindings/:name",
+      "admissionregistration.k8s.io/v1alpha1/MutatingAdmissionPolicy" =>
+        "apis/admissionregistration.k8s.io/v1alpha1/mutatingadmissionpolicies/:name",
+      "admissionregistration.k8s.io/v1alpha1/MutatingAdmissionPolicyBinding" =>
+        "apis/admissionregistration.k8s.io/v1alpha1/mutatingadmissionpolicybindings/:name",
       "admissionregistration.k8s.io/v1beta1/ValidatingAdmissionPolicy" =>
         "apis/admissionregistration.k8s.io/v1beta1/validatingadmissionpolicies/:name",
       "admissionregistration.k8s.io/v1beta1/ValidatingAdmissionPolicyBinding" =>
@@ -118,8 +120,6 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/authentication.k8s.io/v1/selfsubjectreviews/:name",
       "authentication.k8s.io/v1/TokenReview" =>
         "apis/authentication.k8s.io/v1/tokenreviews/:name",
-      "authentication.k8s.io/v1alpha1/SelfSubjectReview" =>
-        "apis/authentication.k8s.io/v1alpha1/selfsubjectreviews/:name",
       "authentication.k8s.io/v1beta1/SelfSubjectReview" =>
         "apis/authentication.k8s.io/v1beta1/selfsubjectreviews/:name",
       "authorization.k8s.io/v1/LocalSubjectAccessReview" =>
@@ -142,8 +142,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/certificates.k8s.io/v1alpha1/clustertrustbundles/:name",
       "coordination.k8s.io/v1/Lease" =>
         "apis/coordination.k8s.io/v1/namespaces/:namespace/leases/:name",
-      "coordination.k8s.io/v1alpha1/LeaseCandidate" =>
-        "apis/coordination.k8s.io/v1alpha1/namespaces/:namespace/leasecandidates/:name",
+      "coordination.k8s.io/v1alpha2/LeaseCandidate" =>
+        "apis/coordination.k8s.io/v1alpha2/namespaces/:namespace/leasecandidates/:name",
       "discovery.k8s.io/v1/EndpointSlice" =>
         "apis/discovery.k8s.io/v1/namespaces/:namespace/endpointslices/:name",
       "events.k8s.io/v1/Event" => "apis/events.k8s.io/v1/namespaces/:namespace/events/:name",
@@ -151,10 +151,6 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/flowcontrol.apiserver.k8s.io/v1/flowschemas/:name",
       "flowcontrol.apiserver.k8s.io/v1/PriorityLevelConfiguration" =>
         "apis/flowcontrol.apiserver.k8s.io/v1/prioritylevelconfigurations/:name",
-      "flowcontrol.apiserver.k8s.io/v1beta3/FlowSchema" =>
-        "apis/flowcontrol.apiserver.k8s.io/v1beta3/flowschemas/:name",
-      "flowcontrol.apiserver.k8s.io/v1beta3/PriorityLevelConfiguration" =>
-        "apis/flowcontrol.apiserver.k8s.io/v1beta3/prioritylevelconfigurations/:name",
       "internal.apiserver.k8s.io/v1alpha1/StorageVersion" =>
         "apis/internal.apiserver.k8s.io/v1alpha1/storageversions/:name",
       "networking.k8s.io/v1/Ingress" =>
@@ -178,14 +174,19 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/rbac.authorization.k8s.io/v1/namespaces/:namespace/rolebindings/:name",
       "resource.k8s.io/v1alpha3/DeviceClass" =>
         "apis/resource.k8s.io/v1alpha3/deviceclasses/:name",
-      "resource.k8s.io/v1alpha3/PodSchedulingContext" =>
-        "apis/resource.k8s.io/v1alpha3/namespaces/:namespace/podschedulingcontexts/:name",
       "resource.k8s.io/v1alpha3/ResourceClaim" =>
         "apis/resource.k8s.io/v1alpha3/namespaces/:namespace/resourceclaims/:name",
       "resource.k8s.io/v1alpha3/ResourceClaimTemplate" =>
         "apis/resource.k8s.io/v1alpha3/namespaces/:namespace/resourceclaimtemplates/:name",
       "resource.k8s.io/v1alpha3/ResourceSlice" =>
         "apis/resource.k8s.io/v1alpha3/resourceslices/:name",
+      "resource.k8s.io/v1beta1/DeviceClass" => "apis/resource.k8s.io/v1beta1/deviceclasses/:name",
+      "resource.k8s.io/v1beta1/ResourceClaim" =>
+        "apis/resource.k8s.io/v1beta1/namespaces/:namespace/resourceclaims/:name",
+      "resource.k8s.io/v1beta1/ResourceClaimTemplate" =>
+        "apis/resource.k8s.io/v1beta1/namespaces/:namespace/resourceclaimtemplates/:name",
+      "resource.k8s.io/v1beta1/ResourceSlice" =>
+        "apis/resource.k8s.io/v1beta1/resourceslices/:name",
       "scheduling.k8s.io/v1/PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
       "storage.k8s.io/v1/CSIDriver" => "apis/storage.k8s.io/v1/csidrivers/:name",
       "storage.k8s.io/v1/CSINode" => "apis/storage.k8s.io/v1/csinodes/:name",
