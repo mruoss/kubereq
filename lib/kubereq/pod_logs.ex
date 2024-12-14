@@ -67,7 +67,7 @@ defmodule Kubereq.PodLogs do
     opts =
       args
       |> Keyword.put(:subresource, "log")
-      |> Kubereq.Connect.args_to_opts()
+      |> args_to_opts()
 
     Kubereq.Connect.start_link(__MODULE__, req: req, state: %{into: into}, opts: opts)
   end
@@ -86,21 +86,46 @@ defmodule Kubereq.PodLogs do
     :close
   end
 
-  def handle_in_stdout(frame, state) do
-    send_frame(state.into, {:stdout, frame})
-    {:ok, state}
-  end
-
-  def handle_in_stderr(frame, state) do
-    send_frame(state.into, {:stderr, frame})
-    {:ok, state}
-  end
-
-  def handle_in_error(frame, state) do
-    send_frame(state.into, {:error, frame})
+  def handle_in(frame, state) do
+    data = map_frame(frame)
+    send_frame(state.into, data)
     {:ok, state}
   end
 
   defp send_frame({dest, ref}, frame), do: send(dest, {ref, frame})
   defp send_frame(dest, frame), do: send(dest, frame)
+
+  def run(req) do
+    Kubereq.Connect.run(req, &map_frame/1)
+  end
+
+  defp map_frame(frame) do
+    case frame do
+      {:binary, <<msg::binary>>} ->
+        {:stdout, msg}
+
+      other ->
+        other
+    end
+  end
+
+  @path_params [:namespace, :name]
+  @log_params [
+    :container,
+    :follow,
+    :insecureSkipTLSVerifyBackend,
+    :limitBytes,
+    :pretty,
+    :previous,
+    :sinceSeconds,
+    :tailLines,
+    :timestamps
+  ]
+  def args_to_opts(args) do
+    {params, args} = Keyword.split(args, @log_params)
+    {path_params, args} = Keyword.split(args, @path_params)
+
+    params = Keyword.put_new(params, :follow, true)
+    Keyword.merge(args, params: params, path_params: path_params)
+  end
 end
