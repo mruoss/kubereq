@@ -40,7 +40,6 @@ defmodule Kubereq.MixProject do
       {:yaml_elixir, "~> 2.0"},
       {:mint, "~> 1.0"},
       {:mint_web_socket, "~> 1.0"},
-      {:fresh, "~> 0.4.4"},
       {:req, "~> 0.5.0"},
 
       # Test deps
