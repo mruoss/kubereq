@@ -68,6 +68,10 @@ defmodule Kubereq.PodExec do
   """
   use Kubereq.Connect
 
+  @stdout 0x01
+  @stderr 0x02
+  @err 0x03
+
   def start_link(args) do
     {into, args} = Keyword.pop!(args, :into)
     {req, args} = Keyword.pop!(args, :req)
@@ -75,7 +79,7 @@ defmodule Kubereq.PodExec do
     opts =
       args
       |> Keyword.put(:subresource, "exec")
-      |> Kubereq.Connect.args_to_opts()
+      |> args_to_opts()
 
     Kubereq.Connect.start_link(__MODULE__, req: req, state: %{into: into}, opts: opts)
   end
@@ -107,21 +111,60 @@ defmodule Kubereq.PodExec do
     :close
   end
 
-  def handle_in_stdout(frame, state) do
-    send_frame(state.into, {:stdout, frame})
-    {:ok, state}
-  end
-
-  def handle_in_stderr(frame, state) do
-    send_frame(state.into, {:stderr, frame})
-    {:ok, state}
-  end
-
-  def handle_in_error(frame, state) do
-    send_frame(state.into, {:error, frame})
+  def handle_in(frame, state) do
+    data = map_frame(frame)
+    send_frame(state.into, data)
     {:ok, state}
   end
 
   defp send_frame({dest, ref}, frame), do: send(dest, {ref, frame})
   defp send_frame(dest, frame), do: send(dest, frame)
+
+  def run(req) do
+    Kubereq.Connect.run(req, &map_frame/1)
+  end
+
+  defp map_frame(frame) do
+    case frame do
+      {:binary, <<@stdout, msg::binary>>} ->
+        {:stdout, msg}
+
+      {:binary, <<@stderr, msg::binary>>} ->
+        {:stderr, msg}
+
+      {:binary, <<@err, msg::binary>>} ->
+        {:error, msg}
+
+      other ->
+        other
+    end
+  end
+
+  @path_params [:namespace, :name]
+  @exec_params [:container, :command, :stdin, :stdout, :stderr, :tty]
+  def args_to_opts(args) do
+    {params, args} = Keyword.split(args, @exec_params)
+    {path_params, args} = Keyword.split(args, @path_params)
+
+    params =
+      params
+      |> Keyword.get_values(:command)
+      |> format_commands()
+      |> Keyword.merge(stdin: true, stdout: true, stderr: true)
+      |> Keyword.merge(Keyword.delete(params, :command))
+
+    Keyword.merge(args, params: params, path_params: path_params)
+  end
+
+  defp format_commands([command]) when is_binary(command) do
+    [command: command]
+  end
+
+  defp format_commands([commands]) when is_list(commands) do
+    format_commands(commands)
+  end
+
+  defp format_commands(commands) when is_list(commands) do
+    Enum.map(commands, &{:command, &1})
+  end
 end

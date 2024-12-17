@@ -1,10 +1,5 @@
 defmodule Kubereq.Connect do
   @moduledoc false
-
-  @stdout 0x01
-  @stderr 0x02
-  @err 0x03
-
   defmacro __using__(opts) do
     quote location: :keep do
       @behaviour Fresh
@@ -39,18 +34,6 @@ defmodule Kubereq.Connect do
       def handle_in(frame, state), do: Kubereq.Connect.handle_in(__MODULE__, frame, state)
 
       @doc false
-      def handle_in_stdout(_message, state), do: {:ok, state}
-
-      @doc false
-      def handle_in_stderr(_message, state), do: {:ok, state}
-
-      @doc false
-      def handle_in_error(_message, state), do: {:ok, state}
-
-      @doc false
-      def handle_binary(_message, state), do: {:ok, state}
-
-      @doc false
       def handle_info(_message, state), do: {:ok, state}
 
       @doc false
@@ -73,32 +56,16 @@ defmodule Kubereq.Connect do
                      handle_control: 2,
                      handle_in: 2,
                      handle_info: 2,
-                     handle_error: 2,
                      handle_disconnect: 3,
-                     handle_terminate: 2,
-                     handle_in_stdout: 2,
-                     handle_in_stderr: 2,
-                     handle_in_error: 2
+                     handle_terminate: 2
     end
   end
 
   defdelegate close(dest, code, reason), to: Fresh
   defdelegate open?(dest), to: Fresh
 
-  def send_stdin(dest, data) do
-    Fresh.send(dest, {:text, <<0, data::binary>>})
-  end
-
   @spec close(dest :: :gen_statem.server_ref()) :: :ok
   def close(dest), do: Fresh.send(dest, {:close, 1000, ""})
-
-  def handle_in(module, frame, state) do
-    case map_frame(frame) do
-      {:stdout, msg} -> module.handle_in_stdout(msg, state)
-      {:stderr, msg} -> module.handle_in_stderr(msg, state)
-      {:error, msg} -> module.handle_in_error(msg, state)
-    end
-  end
 
   @doc false
   def start_link(module, args) do
@@ -139,7 +106,7 @@ defmodule Kubereq.Connect do
     {req, Req.Response.new(status: 101, body: pid)}
   end
 
-  def run(req) do
+  def run(req, map_frame_fun) do
     uri = req.url
     {http_scheme, ws_scheme, _} = ws_scheme(uri.scheme)
     path = uri.path || "/"
@@ -168,7 +135,7 @@ defmodule Kubereq.Connect do
              upgrade_response.status,
              upgrade_response.headers
            ) do
-      stream = create_stream(conn, ref, websocket)
+      stream = create_stream(conn, ref, websocket, map_frame_fun)
       {req, Req.Response.new(status: 101, body: stream)}
     else
       {:error, error} ->
@@ -183,7 +150,7 @@ defmodule Kubereq.Connect do
     for {name, values} <- headers, value <- values, do: {name, value}
   end
 
-  defp create_stream(conn, ref, websocket) do
+  defp create_stream(conn, ref, websocket, map_frame_fun) do
     Stream.resource(
       fn -> {[], conn, ref, websocket} end,
       fn
@@ -191,7 +158,7 @@ defmodule Kubereq.Connect do
           {:halt, {conn, ref, websocket}}
 
         {[frame | rest], conn, ref, websocket} ->
-          {[map_frame(frame)], {rest, conn, ref, websocket}}
+          {[map_frame_fun.(frame)], {rest, conn, ref, websocket}}
 
         {[], conn, ref, websocket} ->
           with {:ok, conn, [{:data, ^ref, data}]} <- Mint.WebSocket.recv(conn, 0, :infinity),
@@ -207,16 +174,6 @@ defmodule Kubereq.Connect do
       end,
       fn _ -> :ok end
     )
-  end
-
-  defp map_frame(frame) do
-    case frame do
-      {:binary, <<@stdout, msg::binary>>} -> {:stdout, msg}
-      {:binary, <<@stderr, msg::binary>>} -> {:stderr, msg}
-      {:binary, <<@err, msg::binary>>} -> {:error, msg}
-      {:binary, msg} -> {:stdout, msg}
-      other -> other
-    end
   end
 
   @spec ws_scheme(binary()) :: {:http, :ws, binary()} | {:https, :wss, binary()}
@@ -244,65 +201,5 @@ defmodule Kubereq.Connect do
           {:halt, {:error, conn, error}}
       end
     end)
-  end
-
-  @path_params [:name, :namespace]
-
-  @doc """
-  Turns arguments passed to a connect function to `Req` options to be passed to
-  `Req.request()`
-  """
-  @spec args_to_opts(args :: Keyword.t()) :: Keyword.t()
-  def args_to_opts(args) do
-    case Keyword.fetch!(args, :subresource) do
-      "log" -> log_args_to_opts(args)
-      "exec" -> exec_args_to_opts(args)
-    end
-  end
-
-  @log_params [
-    :container,
-    :follow,
-    :insecureSkipTLSVerifyBackend,
-    :limitBytes,
-    :pretty,
-    :previous,
-    :sinceSeconds,
-    :tailLines,
-    :timestamps
-  ]
-  defp log_args_to_opts(args) do
-    {params, args} = Keyword.split(args, @log_params)
-    {path_params, args} = Keyword.split(args, @path_params)
-
-    params = Keyword.put_new(params, :follow, true)
-    Keyword.merge(args, params: params, path_params: path_params)
-  end
-
-  @exec_params [:container, :command, :stdin, :stdout, :stderr, :tty]
-  defp exec_args_to_opts(args) do
-    {params, args} = Keyword.split(args, @exec_params)
-    {path_params, args} = Keyword.split(args, @path_params)
-
-    params =
-      params
-      |> Keyword.get_values(:command)
-      |> format_commands()
-      |> Keyword.merge(stdin: true, stdout: true, stderr: true)
-      |> Keyword.merge(Keyword.delete(params, :command))
-
-    Keyword.merge(args, params: params, path_params: path_params)
-  end
-
-  defp format_commands([command]) when is_binary(command) do
-    [command: command]
-  end
-
-  defp format_commands([commands]) when is_list(commands) do
-    format_commands(commands)
-  end
-
-  defp format_commands(commands) when is_list(commands) do
-    Enum.map(commands, &{:command, &1})
   end
 end
