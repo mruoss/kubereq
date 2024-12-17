@@ -30,12 +30,16 @@ defmodule Kubereq.Step.FieldSelector do
   def call(%Req.Request{options: %{field_selectors: field_selectors}} = req) do
     field_selector =
       field_selectors
+      |> to_list()
       |> Enum.map_join(",", &format/1)
 
     Req.merge(req, params: [fieldSelector: field_selector])
   end
 
   def call(req), do: req
+
+  defp to_list(field_selectors) when is_map(field_selectors), do: Enum.to_list(field_selectors)
+  defp to_list(field_selectors), do: List.wrap(field_selectors)
 
   # preformatted field selector
   defp format(field_selector) when is_binary(field_selector), do: field_selector
