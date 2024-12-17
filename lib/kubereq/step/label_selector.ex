@@ -57,13 +57,16 @@ defmodule Kubereq.Step.LabelSelector do
   def call(%Req.Request{options: %{label_selectors: label_selectors}} = req) do
     label_selector =
       label_selectors
-      |> List.wrap()
+      |> to_list()
       |> Enum.map_join(",", &format/1)
 
     Req.merge(req, params: [labelSelector: label_selector])
   end
 
   def call(req), do: req
+
+  defp to_list(label_selectors) when is_map(label_selectors), do: Enum.to_list(label_selectors)
+  defp to_list(label_selectors), do: List.wrap(label_selectors)
 
   # preformatted label selector
   defp format(label_selector) when is_binary(label_selector), do: label_selector
