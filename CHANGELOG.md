@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support for selectors as maps
 
+### Changed
+
+- Replace Fresh with our own implementation for web sockets [#56](https://github.com/mruoss/kubereq/pull/56)
+
 <!-- Add your changelog entry to the relevant subsection -->
 
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
