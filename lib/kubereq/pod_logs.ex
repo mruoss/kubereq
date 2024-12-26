@@ -69,43 +69,38 @@ defmodule Kubereq.PodLogs do
       |> Keyword.put(:subresource, "log")
       |> args_to_opts()
 
-    Kubereq.Connect.start_link(__MODULE__, req: req, state: %{into: into}, opts: opts)
+    req = Req.merge(req, opts)
+
+    Kubereq.Connect.start_link(__MODULE__, req, %{into: into})
   end
 
-  defdelegate open?(dest), to: Fresh
-  defdelegate close(dest, code, reason), to: Fresh
+  defdelegate open?(dest), to: Kubereq.Connect
+  defdelegate close(dest, code, reason), to: Kubereq.Connect
 
   @doc """
   Close the connection and terminate the process.
   """
   @spec close(dest :: :gen_statem.server_ref()) :: :ok
-  def close(dest), do: Fresh.send(dest, {:close, 1000, ""})
+  def close(dest), do: Kubereq.Connect.send_frame(dest, {:close, 1000, ""})
 
-  def handle_disconnect(code, reason, state) do
-    send_frame(state.into, {:close, code, reason})
-    :close
-  end
-
-  def handle_in(frame, state) do
+  @impl Kubereq.Connect
+  def handle_frame(frame, state) do
     data = map_frame(frame)
     send_frame(state.into, data)
-    {:ok, state}
+    {:noreply, state}
   end
 
   defp send_frame({dest, ref}, frame), do: send(dest, {ref, frame})
   defp send_frame(dest, frame), do: send(dest, frame)
 
-  def run(req) do
-    Kubereq.Connect.run(req, &map_frame/1)
+  def connect_and_stream(req) do
+    Kubereq.Connect.connect_and_stream(req, &map_frame/1)
   end
 
   defp map_frame(frame) do
     case frame do
-      {:binary, <<msg::binary>>} ->
-        {:stdout, msg}
-
-      other ->
-        other
+      {:binary, msg} -> {:stdout, msg}
+      other -> other
     end
   end
 
