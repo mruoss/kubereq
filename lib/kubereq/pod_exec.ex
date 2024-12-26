@@ -86,7 +86,14 @@ defmodule Kubereq.PodExec do
     Kubereq.Connect.start_link(__MODULE__, req, %{into: into})
   end
 
+  @doc """
+  Check if the websocket is open.
+  """
   defdelegate open?(dest), to: Kubereq.Connect
+
+  @doc """
+  Send a close frame to close the websocket.
+  """
   defdelegate close(dest, code, reason), to: Kubereq.Connect
 
   @doc """
