@@ -330,6 +330,7 @@ defmodule KubereqIntegrationTest do
     assert stdout =~ "#{log_stmt}\n"
   end
 
+  @tag :wip
   test "streams pod logs to process", %{req_pod: req} do
     pod_name = "example-pod-#{:rand.uniform(10_000)}"
     log_stmt = "foo bar"
@@ -369,6 +370,10 @@ defmodule KubereqIntegrationTest do
         name: pod_name,
         into: {self(), ref}
       )
+
+    start_supervised(
+      {Kubereq.PodLogs, req: req, namespace: @namespace, name: pod_name, into: {self(), ref}}
+    )
 
     logs =
       Stream.repeatedly(fn -> :ok end)
@@ -459,13 +464,14 @@ defmodule KubereqIntegrationTest do
     ref = make_ref()
 
     {:ok, pid} =
-      Kubereq.PodExec.start_link(
-        req: req,
-        namespace: @namespace,
-        name: pod_name,
-        into: {self(), ref},
-        tty: true,
-        command: "/bin/sh"
+      start_supervised(
+        {Kubereq.PodExec,
+         req: req,
+         namespace: @namespace,
+         name: pod_name,
+         into: {self(), ref},
+         tty: true,
+         command: "/bin/sh"}
       )
 
     assert_receive {^ref, :connected}

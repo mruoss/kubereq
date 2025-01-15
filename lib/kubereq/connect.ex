@@ -77,7 +77,7 @@ defmodule Kubereq.Connect do
         Keyword.validate!(init_arg, [:req, :state, :genserver_opts])
         {req, init_arg} = Keyword.fetch!(init_arg, :req)
         {handler_state, init_arg} = Keyword.get(init_arg, :state, %{})
-        {req, genserver_opts} = Keyword.fetch!(init_arg, :genserver_opts)
+        genserver_opts = Keyword.get(init_arg, :genserver_opts, [])
 
         default = %{
           id: __MODULE__,

@@ -63,6 +63,7 @@ defmodule Kubereq.PodLogs do
   def start_link(args) do
     {into, args} = Keyword.pop!(args, :into)
     {req, args} = Keyword.pop!(args, :req)
+    {genserver_opts, args} = Keyword.pop(args, :genserver_opts, [])
 
     opts =
       args
@@ -71,7 +72,16 @@ defmodule Kubereq.PodLogs do
 
     req = Req.merge(req, opts)
 
-    Kubereq.Connect.start_link(__MODULE__, req, %{into: into})
+    Kubereq.Connect.start_link(__MODULE__, req, %{into: into}, genserver_opts)
+  end
+
+  def child_spec(init_arg) do
+    default = %{
+      id: __MODULE__,
+      start: {Kubereq.PodLogs, :start_link, [init_arg]}
+    }
+
+    Supervisor.child_spec(default, [])
   end
 
   @doc """
