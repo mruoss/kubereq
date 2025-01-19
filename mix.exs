@@ -34,8 +34,10 @@ defmodule Kubereq.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp deps() do
+    elixir_version = System.version() |> Version.parse!()
+
     [
-      {:jason, "~> 1.0"},
+      (elixir_version.major == 1 and elixir_version.minor) < 18 && {:jason, "~> 1.0"},
       {:pluggable, "~> 1.0"},
       {:yaml_elixir, "~> 2.0"},
       {:mint, "~> 1.0"},
@@ -52,6 +54,7 @@ defmodule Kubereq.MixProject do
       {:ex_doc, "~> 0.36", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4.0", only: [:dev, :test], runtime: false}
     ]
+    |> Enum.filter(& &1)
   end
 
   defp docs do
