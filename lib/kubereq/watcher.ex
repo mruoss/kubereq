@@ -324,7 +324,7 @@ defmodule Kubereq.Watcher do
         # acc = {:noreply, state} or {:noreply, state, timeout}
         state = elem(acc, 1)
 
-        event = Jason.decode!(line)
+        event = Kubereq.JSON.decode!(line)
         state = %{state | resource_version: event["object"]["metdata"]["resourceVersion"]}
 
         case event |> handle_event(state) |> process_result(state, :noreply) do
@@ -365,7 +365,7 @@ defmodule Kubereq.Watcher do
 
   @spec lines_to_json_objects(binary()) :: [map()]
   defp lines_to_json_objects(line) do
-    case Jason.decode(line) do
+    case Kubereq.JSON.decode(line) do
       {:error, _error} ->
         []
 
