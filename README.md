@@ -35,10 +35,43 @@ The docs can be found at <https://hexdocs.pm/kubereq>.
 This library can be used with plain `Req` but the functions in this module
 provide an easier API to people used to `kubectl` and friends.
 
+### Kubereq API
+
+While you can use this library with plain `Req` functions (see below), it is
+easier to prepare a `Req` request for a specific resource and then use the
+functions defined in the `Kubereq` module.
+
+```ex
+sa_req = Req.new() |> Kubereq.attach(api_version: "v1", kind: "ServiceAccount")
+
+Kubereq.get(sa_req, "my-namespace", "default")
+Kubereq.list(sa_req, "my-namespace")
+```
+
+Or use the functions right away, defining the resource through options:
+
+```ex
+req = Req.new() |> Kubereq.attach()
+
+Kubereq.get(req, "my-namespace", "default", api_version: "v1", kind: "ServiceAccount")
+
+# get the "status" subresource of the default namespace
+Kubereq.get(req, "my-namespace", api_version: "v1", kind: "Namespace", subresource: "status")
+```
+
+For resources defined by Kubernetes, the `api_version` can be omitted:
+
+```ex
+Req.new()
+|> Kubereq.attach(kind: "Namespace")
+|> Kubereq.get("my-namespace")
+```
+
 ### Plain Req
 
-Use `Kubereq.Kubeconfig.Default` to create connection to cluster and
-plain `Req.request()` to make the request
+Inestead of using the function in `Kubereq`, you can use
+`Kubereq.Kubeconfig.Default` to create connection to the cluster and then use
+plain `Req.request()` to make the request.
 
 ```ex
 req = Req.new() |> Kubereq.attach()
@@ -71,36 +104,4 @@ sa_req = Req.new() |> Kubereq.attach(api_version: "v1", kind: "ServiceAccount")
 
 Req.request!(sa_req,  operation: :get, path_params: [namespace: "default", name: "default"])
 Req.request!(sa_req,  operation: :list, path_params: [namespace: "default"])
-```
-
-### Kubereq API
-
-While this library can attach to any `Req` struct, it is sometimes easier
-to prepare `Req` for a specific resource and then use the functions
-defined in the `Kubereq` module.
-
-```ex
-sa_req = Req.new() |> Kubereq.attach(api_version: "v1", kind: "ServiceAccount")
-
-Kubereq.get(sa_req, "my-namespace", "default")
-Kubereq.list(sa_req, "my-namespace")
-```
-
-Or use the functions right away, defining the resource through options:
-
-```ex
-req = Req.new() |> Kubereq.attach()
-
-Kubereq.get(req, "my-namespace", "default", api_version: "v1", kind: "ServiceAccount")
-
-# get the "status" subresource of the default namespace
-Kubereq.get(req, "my-namespace", api_version: "v1", kind: "Namespace", subresource: "status")
-```
-
-For resources defined by Kubernetes, the `api_version` can be omitted:
-
-```ex
-Req.new()
-|> Kubereq.attach(kind: "Namespace")
-|> Kubereq.get("my-namespace")
 ```
