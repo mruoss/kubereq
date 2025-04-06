@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - use `JSON` if it is available. [#61](https://github.com/mruoss/kubereq/pull/61)
 
+### Fixed
+
+- Added missing `Kubereq.PodExec.child_spec/1` and `Kubereq.PodExec.child_spec/2`. [#81](https://github.com/mruoss/kubereq/pull/82)
+
 <!--------------------- Don't add new entries after this line --------------------->
 
 ## 0.4.1 - 2024-12-26
