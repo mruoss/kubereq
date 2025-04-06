@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
+<!--------------------- Don't add new entries after this line --------------------->
+
+## 0.4.2 - 2025-04-06
+
 ### Added
 
 - Support for `proxy-url` setting in Kubeconfig [#81](https://github.com/mruoss/kubereq/pull/81)
@@ -22,8 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Added missing `Kubereq.PodExec.child_spec/1` and `Kubereq.PodExec.child_spec/2`. [#81](https://github.com/mruoss/kubereq/pull/82)
-
-<!--------------------- Don't add new entries after this line --------------------->
 
 ## 0.4.1 - 2024-12-26
 

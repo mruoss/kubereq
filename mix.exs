@@ -3,7 +3,7 @@ defmodule Kubereq.MixProject do
 
   @app :kubereq
   @source_url "https://github.com/mruoss/#{@app}"
-  @version "0.4.1"
+  @version "0.4.2"
 
   def project do
     [
