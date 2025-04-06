@@ -74,6 +74,15 @@ defmodule Kubereq.PodLogs do
     Kubereq.Connect.start_link(__MODULE__, req, %{into: into})
   end
 
+  def child_spec(init_arg) do
+    default = %{
+      id: __MODULE__,
+      start: {Kubereq.PodLogs, :start_link, [init_arg]}
+    }
+
+    Supervisor.child_spec(default, [])
+  end
+
   @doc """
   Check if the websocket is open.
   """
