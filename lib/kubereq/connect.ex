@@ -271,9 +271,11 @@ defmodule Kubereq.Connect do
 
   @impl GenServer
   def format_status(
-        %{state: %{handler_module: handler_module, handler_state: handler_state} = state} = status
+        %{state: %{handler_module: handler_module, handler_state: handler_state} = state} =
+          status,
+        pdict_and_state
       ) do
-    handler_module.format_status(%{status | state: handler_state})
+    handler_module.format_status(%{status | state: handler_state}, pdict_and_state)
     |> Map.update!(:state, &%{state | handler_state: &1})
   end
 

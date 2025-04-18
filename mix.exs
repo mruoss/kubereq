@@ -10,7 +10,7 @@ defmodule Kubereq.MixProject do
       app: @app,
       description: "A Kubernetes Client using Req.",
       version: @version,
-      elixir: "~> 1.16",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),

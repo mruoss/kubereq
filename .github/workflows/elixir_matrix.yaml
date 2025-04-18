@@ -1,0 +1,13 @@
+name: Elixir Compatibility Matrix
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    uses: mruoss/action_elixir_run_tests/.github/workflows/elixir-run-tests.yml@main
+    with:
+      checkout: true
+      warnings-as-errors: true
+      with-kubernetes: true
