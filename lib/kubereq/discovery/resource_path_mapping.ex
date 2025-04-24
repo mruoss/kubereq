@@ -23,6 +23,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "DaemonSet" => "apis/apps/v1/namespaces/:namespace/daemonsets/:name",
       "Deployment" => "apis/apps/v1/namespaces/:namespace/deployments/:name",
       "DeviceClass" => "apis/resource.k8s.io/v1alpha3/deviceclasses/:name",
+      "DeviceTaintRule" => "apis/resource.k8s.io/v1alpha3/devicetaintrules/:name",
       "EndpointSlice" => "apis/discovery.k8s.io/v1/namespaces/:namespace/endpointslices/:name",
       "Endpoints" => "api/v1/namespaces/:namespace/endpoints/:name",
       "Event" => "apis/events.k8s.io/v1/namespaces/:namespace/events/:name",
@@ -70,7 +71,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "RuntimeClass" => "apis/node.k8s.io/v1/runtimeclasses/:name",
       "Secret" => "api/v1/namespaces/:namespace/secrets/:name",
       "SelfSubjectAccessReview" => "apis/authorization.k8s.io/v1/selfsubjectaccessreviews/:name",
-      "SelfSubjectReview" => "apis/authentication.k8s.io/v1beta1/selfsubjectreviews/:name",
+      "SelfSubjectReview" => "apis/authentication.k8s.io/v1/selfsubjectreviews/:name",
       "SelfSubjectRulesReview" => "apis/authorization.k8s.io/v1/selfsubjectrulesreviews/:name",
       "Service" => "api/v1/namespaces/:namespace/services/:name",
       "ServiceAccount" => "api/v1/namespaces/:namespace/serviceaccounts/:name",
@@ -120,8 +121,6 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/authentication.k8s.io/v1/selfsubjectreviews/:name",
       "authentication.k8s.io/v1/TokenReview" =>
         "apis/authentication.k8s.io/v1/tokenreviews/:name",
-      "authentication.k8s.io/v1beta1/SelfSubjectReview" =>
-        "apis/authentication.k8s.io/v1beta1/selfsubjectreviews/:name",
       "authorization.k8s.io/v1/LocalSubjectAccessReview" =>
         "apis/authorization.k8s.io/v1/namespaces/:namespace/localsubjectaccessreviews/:name",
       "authorization.k8s.io/v1/SelfSubjectAccessReview" =>
@@ -140,10 +139,14 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/certificates.k8s.io/v1/certificatesigningrequests/:name",
       "certificates.k8s.io/v1alpha1/ClusterTrustBundle" =>
         "apis/certificates.k8s.io/v1alpha1/clustertrustbundles/:name",
+      "certificates.k8s.io/v1beta1/ClusterTrustBundle" =>
+        "apis/certificates.k8s.io/v1beta1/clustertrustbundles/:name",
       "coordination.k8s.io/v1/Lease" =>
         "apis/coordination.k8s.io/v1/namespaces/:namespace/leases/:name",
       "coordination.k8s.io/v1alpha2/LeaseCandidate" =>
         "apis/coordination.k8s.io/v1alpha2/namespaces/:namespace/leasecandidates/:name",
+      "coordination.k8s.io/v1beta1/LeaseCandidate" =>
+        "apis/coordination.k8s.io/v1beta1/namespaces/:namespace/leasecandidates/:name",
       "discovery.k8s.io/v1/EndpointSlice" =>
         "apis/discovery.k8s.io/v1/namespaces/:namespace/endpointslices/:name",
       "events.k8s.io/v1/Event" => "apis/events.k8s.io/v1/namespaces/:namespace/events/:name",
@@ -153,11 +156,13 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/flowcontrol.apiserver.k8s.io/v1/prioritylevelconfigurations/:name",
       "internal.apiserver.k8s.io/v1alpha1/StorageVersion" =>
         "apis/internal.apiserver.k8s.io/v1alpha1/storageversions/:name",
+      "networking.k8s.io/v1/IPAddress" => "apis/networking.k8s.io/v1/ipaddresses/:name",
       "networking.k8s.io/v1/Ingress" =>
         "apis/networking.k8s.io/v1/namespaces/:namespace/ingresses/:name",
       "networking.k8s.io/v1/IngressClass" => "apis/networking.k8s.io/v1/ingressclasses/:name",
       "networking.k8s.io/v1/NetworkPolicy" =>
         "apis/networking.k8s.io/v1/namespaces/:namespace/networkpolicies/:name",
+      "networking.k8s.io/v1/ServiceCIDR" => "apis/networking.k8s.io/v1/servicecidrs/:name",
       "networking.k8s.io/v1beta1/IPAddress" => "apis/networking.k8s.io/v1beta1/ipaddresses/:name",
       "networking.k8s.io/v1beta1/ServiceCIDR" =>
         "apis/networking.k8s.io/v1beta1/servicecidrs/:name",
@@ -174,6 +179,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/rbac.authorization.k8s.io/v1/namespaces/:namespace/rolebindings/:name",
       "resource.k8s.io/v1alpha3/DeviceClass" =>
         "apis/resource.k8s.io/v1alpha3/deviceclasses/:name",
+      "resource.k8s.io/v1alpha3/DeviceTaintRule" =>
+        "apis/resource.k8s.io/v1alpha3/devicetaintrules/:name",
       "resource.k8s.io/v1alpha3/ResourceClaim" =>
         "apis/resource.k8s.io/v1alpha3/namespaces/:namespace/resourceclaims/:name",
       "resource.k8s.io/v1alpha3/ResourceClaimTemplate" =>
@@ -187,6 +194,13 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/resource.k8s.io/v1beta1/namespaces/:namespace/resourceclaimtemplates/:name",
       "resource.k8s.io/v1beta1/ResourceSlice" =>
         "apis/resource.k8s.io/v1beta1/resourceslices/:name",
+      "resource.k8s.io/v1beta2/DeviceClass" => "apis/resource.k8s.io/v1beta2/deviceclasses/:name",
+      "resource.k8s.io/v1beta2/ResourceClaim" =>
+        "apis/resource.k8s.io/v1beta2/namespaces/:namespace/resourceclaims/:name",
+      "resource.k8s.io/v1beta2/ResourceClaimTemplate" =>
+        "apis/resource.k8s.io/v1beta2/namespaces/:namespace/resourceclaimtemplates/:name",
+      "resource.k8s.io/v1beta2/ResourceSlice" =>
+        "apis/resource.k8s.io/v1beta2/resourceslices/:name",
       "scheduling.k8s.io/v1/PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
       "storage.k8s.io/v1/CSIDriver" => "apis/storage.k8s.io/v1/csidrivers/:name",
       "storage.k8s.io/v1/CSINode" => "apis/storage.k8s.io/v1/csinodes/:name",
