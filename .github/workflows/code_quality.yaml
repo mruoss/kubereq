@@ -21,7 +21,7 @@ jobs:
           version: v0.20.0
           name: kubereq
 
-      - name: Setup elixir
+      - name: Setup elixir & erlang
         id: beam
         uses: erlef/setup-beam@v1
         with:
