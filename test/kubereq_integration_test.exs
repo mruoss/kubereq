@@ -5,7 +5,7 @@ defmodule KubereqIntegrationTest do
 
   import YamlElixir.Sigil
 
-  @cluster_name "kubereq"
+  @cluster_name System.get_env("TEST_CLUSTER_NAME", "kubereq")
   @kubeconfig_path "test/support/kubeconfig-integration.yaml"
   @namespace "integrationtest"
 
@@ -45,6 +45,26 @@ defmodule KubereqIntegrationTest do
         name: #{@namespace}
       """)
 
+    on_exit(fn ->
+      Kubereq.delete_all(req_cm, @namespace, label_selectors: [{"app", "kubereq"}])
+      Kubereq.delete_all(req_pod, @namespace, label_selectors: [{"app", "kubereq"}])
+
+      Kubereq.delete_all(req_pod, @namespace,
+        label_selectors: [{"app", "kubereq"}],
+        kind: "ServiceAccount"
+      )
+
+      Kubereq.delete_all(req_pod, @namespace,
+        label_selectors: [{"app", "kubereq"}],
+        kind: "Secret"
+      )
+
+      Mix.Shell.IO.cmd("kind create cluster --name #{@cluster_name} ")
+    end)
+
+    # give cluster time to start
+    Process.sleep(1000)
+
     [
       req_cm: req_cm,
       req_ns: req_ns,
@@ -53,7 +73,7 @@ defmodule KubereqIntegrationTest do
     ]
   end
 
-  setup %{req_cm: req_cm, req_pod: req_pod} do
+  setup do
     test_id = :rand.uniform(10_000)
 
     example_config_1 = ~y"""
@@ -81,21 +101,6 @@ defmodule KubereqIntegrationTest do
     data:
       foo: bar
     """
-
-    on_exit(fn ->
-      Kubereq.delete_all(req_cm, @namespace, label_selectors: [{"app", "kubereq"}])
-      Kubereq.delete_all(req_pod, @namespace, label_selectors: [{"app", "kubereq"}])
-
-      Kubereq.delete_all(req_pod, @namespace,
-        label_selectors: [{"app", "kubereq"}],
-        kind: "ServiceAccount"
-      )
-
-      Kubereq.delete_all(req_pod, @namespace,
-        label_selectors: [{"app", "kubereq"}],
-        kind: "Secret"
-      )
-    end)
 
     [example_config_1: example_config_1, example_config_2: example_config_2, test_id: test_id]
   end
@@ -311,6 +316,12 @@ defmodule KubereqIntegrationTest do
             - "-c"
             - 'echo "#{log_stmt}"'
             - "sleep infinity"
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 100m
+            limits:
+              memory: 16Mi
     """
 
     Kubereq.apply(req, pod)
@@ -351,6 +362,12 @@ defmodule KubereqIntegrationTest do
             - "-c"
             - 'echo "#{log_stmt}"'
             - "sleep infinity"
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 100m
+            limits:
+              memory: 16Mi
     """
 
     Kubereq.apply(req, pod)
@@ -404,6 +421,12 @@ defmodule KubereqIntegrationTest do
             - /bin/sh
             - "-c"
             - "sleep infinity"
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 100m
+            limits:
+              memory: 16Mi
     """
 
     Kubereq.apply(req, pod)
@@ -428,6 +451,7 @@ defmodule KubereqIntegrationTest do
     assert stdout == "foo\n"
   end
 
+  @tag :wip
   test "streams exec commands to pod and prompts back to process", %{req_pod: req} do
     pod_name = "example-pod-#{:rand.uniform(10_000)}"
 
@@ -447,6 +471,12 @@ defmodule KubereqIntegrationTest do
             - /bin/sh
             - "-c"
             - "sleep infinity"
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 100m
+            limits:
+              memory: 16Mi
     """
 
     Kubereq.apply(req, pod)
@@ -469,10 +499,11 @@ defmodule KubereqIntegrationTest do
       )
 
     assert_receive {^ref, :connected}
+    assert_receive {^ref, {:stdout, "/ # "}}
     Kubereq.PodExec.send_stdin(pid, ~s(echo "foo bar"\n))
 
     result = receive_loop(ref, pid, "") |> IO.iodata_to_binary()
-    assert result == ~s(/ # echo "foo bar"\r\nfoo bar\r\n/ # )
+    assert result == ~s(echo "foo bar"\r\nfoo bar\r\n/ # )
   end
 
   defp receive_loop(ref, dest, acc) do

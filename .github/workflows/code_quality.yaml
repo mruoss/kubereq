@@ -6,10 +6,10 @@ on:
     branches: [main]
 jobs:
   code_quality:
-    uses: mruoss/action_elixir_run_tests/.github/workflows/elixir-code-quality.yml@v1.1.1
+    uses: mruoss/action_elixir_run_tests/.github/workflows/elixir-code-quality.yml@v1.3.0
     with:
       checkout: true
-      with-kubernetes: false
+      with-kubernetes: true
       check-formatting: true
       run-credo: strict
       run-dialyzer: true
