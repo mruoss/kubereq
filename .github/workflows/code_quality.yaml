@@ -4,91 +4,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-
-env:
-  MIX_ENV: test
-  KUBECONFIG: test/support/kubeconfig-integration.yaml
-
 jobs:
-  code-quality:
-    name: Code Quality
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-      - uses: engineerd/setup-kind@v0.5.0
-        id: kind
-        with:
-          version: v0.20.0
-          name: kubereq
-
-      - name: Setup elixir & erlang
-        id: beam
-        uses: erlef/setup-beam@v1
-        with:
-          version-file: .tool-versions
-          version-type: strict
-          install-rebar: true
-          install-hex: true
-
-      - name: Retrieve Build Cache
-        uses: actions/cache@v4
-        id: build-folder-cache
-        with:
-          path: _build/test
-          key: ${{ runner.os }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-build-test-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-
-      - name: Retrieve Mix Dependencies Cache
-        uses: actions/cache@v4
-        id: mix-cache
-        with:
-          path: deps
-          key: ${{ runner.os }}-${{ steps.beam.outputs.otp-version }}-${{ steps.beam.outputs.elixir-version }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-
-      - name: Install Mix Dependencies
-        run: mix deps.get
-
-      - name: Check Formatting
-        run: mix format --check-formatted
-
-      - name: Compile
-        run: MIX_ENV=test mix compile --warnings-as-errors
-
-      - name: Run Credo
-        run: MIX_ENV=test mix credo --strict
-
-      - name: Run Coverage
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MIX_ENV: test
-        run: TEST_WAIT_TIMEOUT=10000 mix coveralls.github --include integration --timeout 20000
-
-      - name: Retrieve PLT Cache
-        uses: actions/cache/restore@v4
-        id: plt-cache
-        with:
-          key: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt-${{ hashFiles('**/mix.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt-
-          path: |
-            priv/plts
-
-      # Create PLTs if no cache was found
-      - name: Create PLTs
-        if: steps.plt-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p priv/plts
-          MIX_ENV=test mix dialyzer --plt
-
-      - name: Save PLT cache
-        id: plt_cache_save
-        uses: actions/cache/save@v4
-        if: steps.plt-cache.outputs.cache-hit != 'true'
-        with:
-          key: |
-            ${{ runner.os }}-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-plt-${{ hashFiles('**/mix.lock') }}
-          path: |
-            priv/plts
-
-      - name: Run dialyzer
-        run: MIX_ENV=test mix dialyzer --format github
+  code_quality:
+    uses: mruoss/action_elixir_run_tests/.github/workflows/elixir-code-quality.yml@v1.1.1
+    with:
+      checkout: true
+      with-kubernetes: false
+      check-formatting: true
+      run-credo: strict
+      run-dialyzer: true
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
