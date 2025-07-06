@@ -186,9 +186,6 @@ defmodule Kubereq.Connect do
       {:error, %Mint.WebSocket{} = websocket, error} ->
         {:stop, error, %{state | websocket: websocket}}
 
-      {:error, mint, error} ->
-        {:stop, error, %{state | mint: mint}}
-
       {:error, mint, error, _} ->
         {:stop, error, %{state | mint: mint}}
     end
