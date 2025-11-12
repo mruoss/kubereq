@@ -6,74 +6,77 @@ defmodule Kubereq.Step.CompressionTest do
   end
 
   test "enables compression by default" do
-    Req.Test.expect(Kubereq.Stub, fn conn ->
-      assert {"content-encoding", "gzip"} in conn.req_headers
-      Req.Test.json(conn, %{})
-    end)
-
-    {:ok, _} =
+    req =
       Req.new()
-      |> Kubereq.attach(kubeconfig: {Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
-      |> Req.request(operation: :create, body: %{}, api_version: "v1", kind: "ConfigMap")
+      |> Kubereq.attach(
+        kubeconfig: {Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}},
+        operation: :create,
+        body: %{},
+        api_version: "v1",
+        kind: "ConfigMap"
+      )
+      |> Req.Request.prepare()
+
+    assert Req.Request.get_header(req, "content-encoding") == ["gzip"]
   end
 
   test "enables compression upon request" do
-    Req.Test.expect(Kubereq.Stub, fn conn ->
-      assert {"content-encoding", "gzip"} in conn.req_headers
-      Req.Test.json(conn, %{})
-    end)
-
     kubeconfig =
       Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
 
     kubeconfig = update_in(kubeconfig.current_cluster, &Map.put(&1, "disable-compression", false))
 
-    {:ok, _} =
+    req =
       Req.new()
       |> Kubereq.attach(
         kubeconfig: kubeconfig,
-        body: %{}
+        operation: :create,
+        body: %{},
+        api_version: "v1",
+        kind: "ConfigMap"
       )
-      |> Req.request(operation: :create, body: %{}, api_version: "v1", kind: "ConfigMap")
+      |> Req.Request.prepare()
+
+    assert Req.Request.get_header(req, "content-encoding") == ["gzip"]
   end
 
   test "disables compression upon request" do
-    Req.Test.expect(Kubereq.Stub, fn conn ->
-      refute {"content-encoding", "gzip"} in conn.req_headers
-      Req.Test.json(conn, %{})
-    end)
-
     kubeconfig =
       Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
 
     kubeconfig = update_in(kubeconfig.current_cluster, &Map.put(&1, "disable-compression", true))
 
-    {:ok, _} =
+    req =
       Req.new()
       |> Kubereq.attach(
         kubeconfig: kubeconfig,
-        body: %{}
+        operation: :create,
+        body: %{},
+        api_version: "v1",
+        kind: "ConfigMap"
       )
-      |> Req.request(operation: :create, body: %{}, api_version: "v1", kind: "ConfigMap")
+      |> Req.Request.prepare()
+
+    assert Req.Request.get_header(req, "content-encoding") == []
   end
 
   test "disables compression if request body is nil" do
-    Req.Test.expect(Kubereq.Stub, fn conn ->
-      refute {"content-encoding", "gzip"} in conn.req_headers
-      Req.Test.json(conn, %{})
-    end)
-
     kubeconfig =
       Kubereq.Kubeconfig.load({Kubereq.Kubeconfig.Stub, plugs: {Req.Test, Kubereq.Stub}})
 
     kubeconfig = update_in(kubeconfig.current_cluster, &Map.put(&1, "disable-compression", true))
 
-    {:ok, _} =
+    req =
       Req.new()
       |> Kubereq.attach(
         kubeconfig: kubeconfig,
-        body: %{}
+        operation: :create,
+        body: %{},
+        api_version: "v1",
+        kind: "ConfigMap"
       )
-      |> Req.request(operation: :create, body: %{}, api_version: "v1", kind: "ConfigMap")
+      |> Req.Request.prepare()
+
+    assert Req.Request.get_header(req, "content-encoding") == []
   end
 end

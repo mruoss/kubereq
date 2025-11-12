@@ -451,7 +451,6 @@ defmodule KubereqIntegrationTest do
     assert stdout == "foo\n"
   end
 
-  @tag :wip
   test "streams exec commands to pod and prompts back to process", %{req_pod: req} do
     pod_name = "example-pod-#{:rand.uniform(10_000)}"
 
