@@ -15,7 +15,6 @@ defmodule Kubereq.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       docs: docs(),
-      preferred_cli_env: cli_env(),
       package: package(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: dialyzer()
@@ -88,7 +87,7 @@ defmodule Kubereq.MixProject do
     ]
   end
 
-  defp cli_env do
+  def cli do
     [
       coveralls: :test,
       "coveralls.detail": :test,

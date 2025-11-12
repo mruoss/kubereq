@@ -20,17 +20,15 @@ jobs:
           fetch-depth: 0
           submodules: true
 
-      - name: Setup elixir
-        id: beam
-        uses: erlef/setup-beam@v1
-        with:
-          version-file: .tool-versions
-          version-type: strict
-          install-rebar: true
-          install-hex: true
+      - name: Setup Mise JDX
+        run: |
+          curl https://mise.run | sh
+          echo "$HOME/.local/share/mise/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+          echo "eval \"\$(mise activate bash)\"" >> ~/.bash_profile
 
       - name: Generate API Spec
-        run: elixir build_lib/generate_api_spec.exs
+        run: mise x erlang elixir -- elixir build_lib/generate_api_spec.exs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
