@@ -6,6 +6,10 @@ defmodule Kubereq.Connect do
   require Logger
   require Mint.HTTP
 
+  # Dialyzer incorrectly infers that `Mint.WebSocket.new/4` in
+  # `connect/1,2` will always return `{error, conn, reason}`.
+  @dialyzer {:nowarn_function, connect: 1, connect_and_stream: 2, init: 1, create_stream: 4}
+
   @callback handle_frame(frame :: Mint.WebSocket.frame(), state :: term()) ::
               {:noreply, new_state}
               | {:noreply, new_state, timeout()}
