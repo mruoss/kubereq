@@ -1,6 +1,5 @@
 {
   extends: [
-    'config:base',
     'config:recommended',
     ':automergeMinor',
     ':automergePr',
