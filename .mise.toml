@@ -1,7 +1,7 @@
 [tools]
 erlang="28.1.1"
 elixir="1.19.4"
-kind="0.30.0"
+kind="0.31.0"
 
 [[env]]
 _.file = '.env'
