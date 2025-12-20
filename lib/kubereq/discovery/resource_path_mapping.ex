@@ -53,7 +53,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "PersistentVolumeClaim" => "api/v1/namespaces/:namespace/persistentvolumeclaims/:name",
       "Pod" => "api/v1/namespaces/:namespace/pods/:name",
       "PodCertificateRequest" =>
-        "apis/certificates.k8s.io/v1alpha1/namespaces/:namespace/podcertificaterequests/:name",
+        "apis/certificates.k8s.io/v1beta1/namespaces/:namespace/podcertificaterequests/:name",
       "PodDisruptionBudget" => "apis/policy/v1/namespaces/:namespace/poddisruptionbudgets/:name",
       "PodTemplate" => "api/v1/namespaces/:namespace/podtemplates/:name",
       "PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
@@ -82,7 +82,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "StorageClass" => "apis/storage.k8s.io/v1/storageclasses/:name",
       "StorageVersion" => "apis/internal.apiserver.k8s.io/v1alpha1/storageversions/:name",
       "StorageVersionMigration" =>
-        "apis/storagemigration.k8s.io/v1alpha1/storageversionmigrations/:name",
+        "apis/storagemigration.k8s.io/v1beta1/storageversionmigrations/:name",
       "SubjectAccessReview" => "apis/authorization.k8s.io/v1/subjectaccessreviews/:name",
       "TokenReview" => "apis/authentication.k8s.io/v1/tokenreviews/:name",
       "ValidatingAdmissionPolicy" =>
@@ -92,7 +92,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "ValidatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations/:name",
       "VolumeAttachment" => "apis/storage.k8s.io/v1/volumeattachments/:name",
-      "VolumeAttributesClass" => "apis/storage.k8s.io/v1alpha1/volumeattributesclasses/:name",
+      "VolumeAttributesClass" => "apis/storage.k8s.io/v1beta1/volumeattributesclasses/:name",
+      "Workload" => "apis/scheduling.k8s.io/v1alpha1/namespaces/:namespace/workloads/:name",
       "admissionregistration.k8s.io/v1/MutatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/:name",
       "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy" =>
@@ -141,10 +142,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/certificates.k8s.io/v1/certificatesigningrequests/:name",
       "certificates.k8s.io/v1alpha1/ClusterTrustBundle" =>
         "apis/certificates.k8s.io/v1alpha1/clustertrustbundles/:name",
-      "certificates.k8s.io/v1alpha1/PodCertificateRequest" =>
-        "apis/certificates.k8s.io/v1alpha1/namespaces/:namespace/podcertificaterequests/:name",
       "certificates.k8s.io/v1beta1/ClusterTrustBundle" =>
         "apis/certificates.k8s.io/v1beta1/clustertrustbundles/:name",
+      "certificates.k8s.io/v1beta1/PodCertificateRequest" =>
+        "apis/certificates.k8s.io/v1beta1/namespaces/:namespace/podcertificaterequests/:name",
       "coordination.k8s.io/v1/Lease" =>
         "apis/coordination.k8s.io/v1/namespaces/:namespace/leases/:name",
       "coordination.k8s.io/v1alpha2/LeaseCandidate" =>
@@ -204,6 +205,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "resource.k8s.io/v1beta2/ResourceSlice" =>
         "apis/resource.k8s.io/v1beta2/resourceslices/:name",
       "scheduling.k8s.io/v1/PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
+      "scheduling.k8s.io/v1alpha1/Workload" =>
+        "apis/scheduling.k8s.io/v1alpha1/namespaces/:namespace/workloads/:name",
       "storage.k8s.io/v1/CSIDriver" => "apis/storage.k8s.io/v1/csidrivers/:name",
       "storage.k8s.io/v1/CSINode" => "apis/storage.k8s.io/v1/csinodes/:name",
       "storage.k8s.io/v1/CSIStorageCapacity" =>
@@ -212,12 +215,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "storage.k8s.io/v1/VolumeAttachment" => "apis/storage.k8s.io/v1/volumeattachments/:name",
       "storage.k8s.io/v1/VolumeAttributesClass" =>
         "apis/storage.k8s.io/v1/volumeattributesclasses/:name",
-      "storage.k8s.io/v1alpha1/VolumeAttributesClass" =>
-        "apis/storage.k8s.io/v1alpha1/volumeattributesclasses/:name",
       "storage.k8s.io/v1beta1/VolumeAttributesClass" =>
         "apis/storage.k8s.io/v1beta1/volumeattributesclasses/:name",
-      "storagemigration.k8s.io/v1alpha1/StorageVersionMigration" =>
-        "apis/storagemigration.k8s.io/v1alpha1/storageversionmigrations/:name",
+      "storagemigration.k8s.io/v1beta1/StorageVersionMigration" =>
+        "apis/storagemigration.k8s.io/v1beta1/storageversionmigrations/:name",
       "v1/Binding" => "api/v1/namespaces/:namespace/bindings/:name",
       "v1/ComponentStatus" => "api/v1/componentstatuses/:name",
       "v1/ConfigMap" => "api/v1/namespaces/:namespace/configmaps/:name",
