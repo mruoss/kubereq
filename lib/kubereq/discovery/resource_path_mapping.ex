@@ -55,6 +55,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "PodCertificateRequest" =>
         "apis/certificates.k8s.io/v1beta1/namespaces/:namespace/podcertificaterequests/:name",
       "PodDisruptionBudget" => "apis/policy/v1/namespaces/:namespace/poddisruptionbudgets/:name",
+      "PodGroup" => "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/podgroups/:name",
       "PodTemplate" => "api/v1/namespaces/:namespace/podtemplates/:name",
       "PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
       "PriorityLevelConfiguration" =>
@@ -65,6 +66,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/resource.k8s.io/v1beta1/namespaces/:namespace/resourceclaims/:name",
       "ResourceClaimTemplate" =>
         "apis/resource.k8s.io/v1beta1/namespaces/:namespace/resourceclaimtemplates/:name",
+      "ResourcePoolStatusRequest" =>
+        "apis/resource.k8s.io/v1alpha3/resourcepoolstatusrequests/:name",
       "ResourceQuota" => "api/v1/namespaces/:namespace/resourcequotas/:name",
       "ResourceSlice" => "apis/resource.k8s.io/v1beta1/resourceslices/:name",
       "Role" => "apis/rbac.authorization.k8s.io/v1/namespaces/:namespace/roles/:name",
@@ -93,7 +96,11 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations/:name",
       "VolumeAttachment" => "apis/storage.k8s.io/v1/volumeattachments/:name",
       "VolumeAttributesClass" => "apis/storage.k8s.io/v1beta1/volumeattributesclasses/:name",
-      "Workload" => "apis/scheduling.k8s.io/v1alpha1/namespaces/:namespace/workloads/:name",
+      "Workload" => "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/workloads/:name",
+      "admissionregistration.k8s.io/v1/MutatingAdmissionPolicy" =>
+        "apis/admissionregistration.k8s.io/v1/mutatingadmissionpolicies/:name",
+      "admissionregistration.k8s.io/v1/MutatingAdmissionPolicyBinding" =>
+        "apis/admissionregistration.k8s.io/v1/mutatingadmissionpolicybindings/:name",
       "admissionregistration.k8s.io/v1/MutatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/mutatingwebhookconfigurations/:name",
       "admissionregistration.k8s.io/v1/ValidatingAdmissionPolicy" =>
@@ -190,6 +197,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "resource.k8s.io/v1/ResourceSlice" => "apis/resource.k8s.io/v1/resourceslices/:name",
       "resource.k8s.io/v1alpha3/DeviceTaintRule" =>
         "apis/resource.k8s.io/v1alpha3/devicetaintrules/:name",
+      "resource.k8s.io/v1alpha3/ResourcePoolStatusRequest" =>
+        "apis/resource.k8s.io/v1alpha3/resourcepoolstatusrequests/:name",
       "resource.k8s.io/v1beta1/DeviceClass" => "apis/resource.k8s.io/v1beta1/deviceclasses/:name",
       "resource.k8s.io/v1beta1/ResourceClaim" =>
         "apis/resource.k8s.io/v1beta1/namespaces/:namespace/resourceclaims/:name",
@@ -198,6 +207,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "resource.k8s.io/v1beta1/ResourceSlice" =>
         "apis/resource.k8s.io/v1beta1/resourceslices/:name",
       "resource.k8s.io/v1beta2/DeviceClass" => "apis/resource.k8s.io/v1beta2/deviceclasses/:name",
+      "resource.k8s.io/v1beta2/DeviceTaintRule" =>
+        "apis/resource.k8s.io/v1beta2/devicetaintrules/:name",
       "resource.k8s.io/v1beta2/ResourceClaim" =>
         "apis/resource.k8s.io/v1beta2/namespaces/:namespace/resourceclaims/:name",
       "resource.k8s.io/v1beta2/ResourceClaimTemplate" =>
@@ -205,8 +216,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "resource.k8s.io/v1beta2/ResourceSlice" =>
         "apis/resource.k8s.io/v1beta2/resourceslices/:name",
       "scheduling.k8s.io/v1/PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
-      "scheduling.k8s.io/v1alpha1/Workload" =>
-        "apis/scheduling.k8s.io/v1alpha1/namespaces/:namespace/workloads/:name",
+      "scheduling.k8s.io/v1alpha2/PodGroup" =>
+        "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/podgroups/:name",
+      "scheduling.k8s.io/v1alpha2/Workload" =>
+        "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/workloads/:name",
       "storage.k8s.io/v1/CSIDriver" => "apis/storage.k8s.io/v1/csidrivers/:name",
       "storage.k8s.io/v1/CSINode" => "apis/storage.k8s.io/v1/csinodes/:name",
       "storage.k8s.io/v1/CSIStorageCapacity" =>
