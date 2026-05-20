@@ -16,8 +16,7 @@ defmodule Kubereq.Step.TLS do
     [
       (cluster["insecure-skip-tls-verify"] && {:verify, :verify_none}) || {:verify, :verify_peer},
       ca_cert!(cluster),
-      sni(cluster),
-      {:customize_hostname_check, [match_fun: &check_ips_as_dns_id/2]}
+      sni(cluster)
     ]
     |> List.flatten()
     |> Enum.filter(& &1)
@@ -44,18 +43,4 @@ defmodule Kubereq.Step.TLS do
   end
 
   defp sni(_), do: nil
-
-  # Temporary workaround until this is fixed in some lower layer
-  # https://github.com/erlang/otp/issues/7968
-  @spec check_ips_as_dns_id({:dns_id}, charlist()) :: true | :default
-  defp check_ips_as_dns_id({:dns_id, hostname}, {:iPAddress, ip}) do
-    with {:ok, ip_tuple} <- :inet.parse_address(hostname),
-         ^ip <- Tuple.to_list(ip_tuple) do
-      true
-    else
-      _ -> :default
-    end
-  end
-
-  defp check_ips_as_dns_id(_, _), do: :default
 end
