@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--------------------- Don't add new entries after this line --------------------->
 
+## 0.4.3 - 2026-07-20
+
+### Fixed
+
+- Remove temporary workaround which broke wildcard TLS certificate matching [#175](https://github.com/mruoss/kubereq/pull/175)
+
 ## 0.4.2 - 2025-04-06
 
 ### Added
