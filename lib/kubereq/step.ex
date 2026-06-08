@@ -33,11 +33,6 @@ defmodule Kubereq.Step do
   end
 
   @spec call(req :: Req.Request.t()) :: Req.Request.t()
-  def call(req) when not is_map_key(req.options, :kubeconfig) do
-    {req, StepError.new(:kubeconfig_not_loaded)}
-  end
-
-  @spec call(req :: Req.Request.t()) :: Req.Request.t()
   def call(req)
       when not is_map_key(req.options, :operation) do
     {req, StepError.new(:operation_missing)}
