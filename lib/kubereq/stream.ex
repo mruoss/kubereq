@@ -1,8 +1,6 @@
 defmodule Kubereq.Stream do
   @moduledoc false
 
-  require Logger
-
   @type remainder :: binary()
 
   @spec create_list_stream(map(), fun()) :: Enumerable.t(map())
