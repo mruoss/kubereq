@@ -12,8 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
 <!--------------------- Don't add new entries after this line --------------------->
+## 0.4.4 - 2026-06-08
 
-## 0.4.3 - 2026-07-20
+### Chores
+
+- Upgrade `req` to v0.6.1 (includes security fixes)
+- Upgrade `credo` to v1.7.19
+
+## 0.4.3 - 2026-05-20
 
 ### Fixed
 
