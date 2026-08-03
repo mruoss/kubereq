@@ -893,9 +893,9 @@ defmodule Kubereq do
 
     All options described in the moduledoc plus:
 
-      * `:resource_version` - Optional. Resource version to start watching from.
-        Per default, the watcher starts watching from the current
-        resource_version.
+    * `:resource_version` - Optional. Resource version to start watching from.
+      Per default, the watcher starts watching from the current
+      resource_version.
   """
   @spec watch(
           Req.Request.t(),
@@ -943,9 +943,9 @@ defmodule Kubereq do
 
     All options described in the moduledoc plus:
 
-      * `:resource_version` - Optional. Resource version to start watching from.
-        Per default, the watcher starts watching from the current
-        resource_version.
+    * `:resource_version` - Optional. Resource version to start watching from.
+      Per default, the watcher starts watching from the current
+      resource_version.
   """
   @spec watch!(
           Req.Request.t(),
