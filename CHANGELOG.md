@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- ### Added | Changed | Deprecated | Removed | Fixed | Security -->
 
 <!--------------------- Don't add new entries after this line --------------------->
+## 0.4.5 - 2026-08-07
+
+### Chores
+
+- Upgrade `req` to v0.7.2
+
 ## 0.4.4 - 2026-06-08
 
 ### Chores
