@@ -135,7 +135,7 @@ defmodule Kubereq.PodExec do
   defp send_frame({dest, ref}, frame), do: send(dest, {ref, frame})
   defp send_frame(dest, frame), do: send(dest, frame)
 
-  def connect_and_stream(req) do
+  def run(req) do
     Kubereq.Connect.connect_and_stream(req, &map_frame/1)
   end
 

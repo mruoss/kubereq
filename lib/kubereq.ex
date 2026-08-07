@@ -1178,7 +1178,7 @@ defmodule Kubereq do
         name: name,
         operation: :connect,
         subresource: "log",
-        adapter: &Kubereq.PodLogs.connect_and_stream(&1)
+        adapter: Kubereq.PodLogs
       )
       |> Kubereq.PodLogs.args_to_opts()
 
@@ -1289,7 +1289,7 @@ defmodule Kubereq do
         name: name,
         operation: :connect,
         subresource: "exec",
-        adapter: &Kubereq.PodExec.connect_and_stream(&1)
+        adapter: Kubereq.PodExec
       )
       |> Kubereq.PodExec.args_to_opts()
 
