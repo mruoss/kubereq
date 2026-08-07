@@ -8,7 +8,8 @@ defmodule Kubereq.Connect do
 
   # Dialyzer incorrectly infers that `Mint.WebSocket.new/4` in
   # `connect/1,2` will always return `{error, conn, reason}`.
-  @dialyzer {:nowarn_function, connect: 1, connect_and_stream: 2, init: 1, create_stream: 4}
+  @dialyzer {:nowarn_function,
+             connect: 1, connect_and_stream: 2, handle_cast: 2, create_stream: 4}
 
   @callback handle_frame(frame :: Mint.WebSocket.frame(), state :: term()) ::
               {:noreply, new_state}
@@ -133,46 +134,41 @@ defmodule Kubereq.Connect do
   end
 
   def start_link(handler_module, req, handler_state, opts \\ []) do
+    {:ok, pid} = GenServer.start_link(__MODULE__, {handler_module, handler_state}, opts)
+
     {:ok, resp} =
       req
+      |> Req.Request.register_options([:kubereq_connect])
       |> Req.request(
         kind: "Pod",
+        kubereq_connect: pid,
         operation: :connect,
-        adapter: fn req ->
-          {:ok, pid} =
-            GenServer.start_link(__MODULE__, {req, handler_module, handler_state}, opts)
-
-          {req, Req.Response.new(status: 101, body: pid)}
-        end
+        adapter: __MODULE__
       )
 
     {:ok, resp.body}
   end
 
-  @impl GenServer
-  def init({req, handler_module, handler_state}) do
-    with {:ok, mint, websocket, ref} <- connect(req),
-         {:ok, mint} <- Mint.HTTP.set_mode(mint, :active),
-         {:ok, handler_state} <- handler_module.init(handler_state) do
-      state =
-        struct(__MODULE__,
-          mint: mint,
-          websocket: websocket,
-          ref: ref,
-          handler_module: handler_module,
-          handler_state: handler_state
-        )
+  def run(req) do
+    pid = req.options[:kubereq_connect]
+    GenServer.cast(pid, {:request, req})
+    {req, Req.Response.new(status: 101, body: pid)}
+  end
 
-      {:ok, state}
-    else
-      {:error, error} ->
-        {:stop, error}
+  @impl GenServer
+  def init({handler_module, handler_state}) do
+    case handler_module.init(handler_state) do
+      {:ok, handler_state} ->
+        state =
+          struct(__MODULE__,
+            handler_module: handler_module,
+            handler_state: handler_state
+          )
+
+        {:ok, state}
 
       {:stop, reason} ->
         {:stop, reason}
-
-      {:error, _mint, error} ->
-        {:stop, error}
     end
   end
 
@@ -246,6 +242,20 @@ defmodule Kubereq.Connect do
     end
   end
 
+  def handle_cast({:request, req}, state) do
+    with {:ok, mint, websocket, ref} <- connect(req),
+         {:ok, mint} <- Mint.HTTP.set_mode(mint, :active) do
+      state = %{state | mint: mint, websocket: websocket, ref: ref}
+      {:noreply, state}
+    else
+      {%Req.Request{}, error} ->
+        {:stop, error, state}
+
+      {:error, _mint, error} ->
+        {:stop, error, state}
+    end
+  end
+
   def handle_cast(request, state) do
     state.handler_module.handle_cast(request, state.handler_state)
     |> process_result(state)
@@ -299,7 +309,7 @@ defmodule Kubereq.Connect do
     end
   end
 
-  defp connect(req) do
+  defp connect(%Req.Request{} = req) do
     uri = req.url
     {http_scheme, ws_scheme} = ws_scheme(uri.scheme)
 

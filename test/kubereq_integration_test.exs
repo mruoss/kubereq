@@ -58,8 +58,6 @@ defmodule KubereqIntegrationTest do
         label_selectors: [{"app", "kubereq"}],
         kind: "Secret"
       )
-
-      Mix.Shell.IO.cmd("kind create cluster --name #{@cluster_name} ")
     end)
 
     # give cluster time to start
