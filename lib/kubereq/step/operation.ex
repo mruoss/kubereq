@@ -18,7 +18,7 @@ defmodule Kubereq.Step.Operation do
 
         options = operation(req.options.operation, request_path, req.options[:subresource])
 
-        req |> Req.merge(options) |> fix_params()
+        Req.merge(req, options)
 
       :error ->
         {req,
@@ -28,15 +28,6 @@ defmodule Kubereq.Step.Operation do
              ~s|The requested resource "#{req.options.kind}" of apiVersion "#{req.options.api_version} does not exist on the cluster."|
          }}
     end
-  end
-
-  # Fix for https://github.com/wojtekmach/req/issues/556
-  defp fix_params(req) do
-    %{
-      req
-      | url: URI.append_query(req.url, URI.encode_query(req.options[:params] || [])),
-        options: Map.put(req.options, :params, [])
-    }
   end
 
   defp resource_path(%{options: %{resource_path: resource_path}}), do: {:ok, resource_path}
