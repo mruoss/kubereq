@@ -13,8 +13,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/certificates.k8s.io/v1/certificatesigningrequests/:name",
       "ClusterRole" => "apis/rbac.authorization.k8s.io/v1/clusterroles/:name",
       "ClusterRoleBinding" => "apis/rbac.authorization.k8s.io/v1/clusterrolebindings/:name",
-      "ClusterTrustBundle" => "apis/certificates.k8s.io/v1alpha1/clustertrustbundles/:name",
+      "ClusterTrustBundle" => "apis/certificates.k8s.io/v1beta1/clustertrustbundles/:name",
       "ComponentStatus" => "api/v1/componentstatuses/:name",
+      "CompositePodGroup" =>
+        "apis/scheduling.k8s.io/v1alpha3/namespaces/:namespace/compositepodgroups/:name",
       "ConfigMap" => "api/v1/namespaces/:namespace/configmaps/:name",
       "ControllerRevision" => "apis/apps/v1/namespaces/:namespace/controllerrevisions/:name",
       "CronJob" => "apis/batch/v1/namespaces/:namespace/cronjobs/:name",
@@ -27,10 +29,13 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "EndpointSlice" => "apis/discovery.k8s.io/v1/namespaces/:namespace/endpointslices/:name",
       "Endpoints" => "api/v1/namespaces/:namespace/endpoints/:name",
       "Event" => "apis/events.k8s.io/v1/namespaces/:namespace/events/:name",
+      "Eviction" => "apis/lifecycle.k8s.io/v1alpha1/namespaces/:namespace/evictions/:name",
+      "EvictionRequest" =>
+        "apis/lifecycle.k8s.io/v1alpha1/namespaces/:namespace/evictionrequests/:name",
       "FlowSchema" => "apis/flowcontrol.apiserver.k8s.io/v1/flowschemas/:name",
       "HorizontalPodAutoscaler" =>
         "apis/autoscaling/v1/namespaces/:namespace/horizontalpodautoscalers/:name",
-      "IPAddress" => "apis/networking.k8s.io/v1beta1/ipaddresses/:name",
+      "IPAddress" => "apis/networking.k8s.io/v1/ipaddresses/:name",
       "Ingress" => "apis/networking.k8s.io/v1/namespaces/:namespace/ingresses/:name",
       "IngressClass" => "apis/networking.k8s.io/v1/ingressclasses/:name",
       "Job" => "apis/batch/v1/namespaces/:namespace/jobs/:name",
@@ -55,7 +60,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "PodCertificateRequest" =>
         "apis/certificates.k8s.io/v1beta1/namespaces/:namespace/podcertificaterequests/:name",
       "PodDisruptionBudget" => "apis/policy/v1/namespaces/:namespace/poddisruptionbudgets/:name",
-      "PodGroup" => "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/podgroups/:name",
+      "PodGroup" => "apis/scheduling.k8s.io/v1alpha3/namespaces/:namespace/podgroups/:name",
       "PodTemplate" => "api/v1/namespaces/:namespace/podtemplates/:name",
       "PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
       "PriorityLevelConfiguration" =>
@@ -80,7 +85,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "SelfSubjectRulesReview" => "apis/authorization.k8s.io/v1/selfsubjectrulesreviews/:name",
       "Service" => "api/v1/namespaces/:namespace/services/:name",
       "ServiceAccount" => "api/v1/namespaces/:namespace/serviceaccounts/:name",
-      "ServiceCIDR" => "apis/networking.k8s.io/v1beta1/servicecidrs/:name",
+      "ServiceCIDR" => "apis/networking.k8s.io/v1/servicecidrs/:name",
       "StatefulSet" => "apis/apps/v1/namespaces/:namespace/statefulsets/:name",
       "StorageClass" => "apis/storage.k8s.io/v1/storageclasses/:name",
       "StorageVersion" => "apis/internal.apiserver.k8s.io/v1alpha1/storageversions/:name",
@@ -95,8 +100,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "ValidatingWebhookConfiguration" =>
         "apis/admissionregistration.k8s.io/v1/validatingwebhookconfigurations/:name",
       "VolumeAttachment" => "apis/storage.k8s.io/v1/volumeattachments/:name",
-      "VolumeAttributesClass" => "apis/storage.k8s.io/v1beta1/volumeattributesclasses/:name",
-      "Workload" => "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/workloads/:name",
+      "VolumeAttributesClass" => "apis/storage.k8s.io/v1/volumeattributesclasses/:name",
+      "Workload" => "apis/scheduling.k8s.io/v1alpha3/namespaces/:namespace/workloads/:name",
       "admissionregistration.k8s.io/v1/MutatingAdmissionPolicy" =>
         "apis/admissionregistration.k8s.io/v1/mutatingadmissionpolicies/:name",
       "admissionregistration.k8s.io/v1/MutatingAdmissionPolicyBinding" =>
@@ -147,8 +152,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "batch/v1/Job" => "apis/batch/v1/namespaces/:namespace/jobs/:name",
       "certificates.k8s.io/v1/CertificateSigningRequest" =>
         "apis/certificates.k8s.io/v1/certificatesigningrequests/:name",
-      "certificates.k8s.io/v1alpha1/ClusterTrustBundle" =>
-        "apis/certificates.k8s.io/v1alpha1/clustertrustbundles/:name",
+      "certificates.k8s.io/v1/ClusterTrustBundle" =>
+        "apis/certificates.k8s.io/v1/clustertrustbundles/:name",
+      "certificates.k8s.io/v1/PodCertificateRequest" =>
+        "apis/certificates.k8s.io/v1/namespaces/:namespace/podcertificaterequests/:name",
       "certificates.k8s.io/v1beta1/ClusterTrustBundle" =>
         "apis/certificates.k8s.io/v1beta1/clustertrustbundles/:name",
       "certificates.k8s.io/v1beta1/PodCertificateRequest" =>
@@ -168,6 +175,10 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
         "apis/flowcontrol.apiserver.k8s.io/v1/prioritylevelconfigurations/:name",
       "internal.apiserver.k8s.io/v1alpha1/StorageVersion" =>
         "apis/internal.apiserver.k8s.io/v1alpha1/storageversions/:name",
+      "lifecycle.k8s.io/v1alpha1/Eviction" =>
+        "apis/lifecycle.k8s.io/v1alpha1/namespaces/:namespace/evictions/:name",
+      "lifecycle.k8s.io/v1alpha1/EvictionRequest" =>
+        "apis/lifecycle.k8s.io/v1alpha1/namespaces/:namespace/evictionrequests/:name",
       "networking.k8s.io/v1/IPAddress" => "apis/networking.k8s.io/v1/ipaddresses/:name",
       "networking.k8s.io/v1/Ingress" =>
         "apis/networking.k8s.io/v1/namespaces/:namespace/ingresses/:name",
@@ -175,9 +186,6 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "networking.k8s.io/v1/NetworkPolicy" =>
         "apis/networking.k8s.io/v1/namespaces/:namespace/networkpolicies/:name",
       "networking.k8s.io/v1/ServiceCIDR" => "apis/networking.k8s.io/v1/servicecidrs/:name",
-      "networking.k8s.io/v1beta1/IPAddress" => "apis/networking.k8s.io/v1beta1/ipaddresses/:name",
-      "networking.k8s.io/v1beta1/ServiceCIDR" =>
-        "apis/networking.k8s.io/v1beta1/servicecidrs/:name",
       "node.k8s.io/v1/RuntimeClass" => "apis/node.k8s.io/v1/runtimeclasses/:name",
       "policy/v1/PodDisruptionBudget" =>
         "apis/policy/v1/namespaces/:namespace/poddisruptionbudgets/:name",
@@ -190,6 +198,7 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "rbac.authorization.k8s.io/v1/RoleBinding" =>
         "apis/rbac.authorization.k8s.io/v1/namespaces/:namespace/rolebindings/:name",
       "resource.k8s.io/v1/DeviceClass" => "apis/resource.k8s.io/v1/deviceclasses/:name",
+      "resource.k8s.io/v1/DeviceTaintRule" => "apis/resource.k8s.io/v1/devicetaintrules/:name",
       "resource.k8s.io/v1/ResourceClaim" =>
         "apis/resource.k8s.io/v1/namespaces/:namespace/resourceclaims/:name",
       "resource.k8s.io/v1/ResourceClaimTemplate" =>
@@ -216,10 +225,16 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "resource.k8s.io/v1beta2/ResourceSlice" =>
         "apis/resource.k8s.io/v1beta2/resourceslices/:name",
       "scheduling.k8s.io/v1/PriorityClass" => "apis/scheduling.k8s.io/v1/priorityclasses/:name",
-      "scheduling.k8s.io/v1alpha2/PodGroup" =>
-        "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/podgroups/:name",
-      "scheduling.k8s.io/v1alpha2/Workload" =>
-        "apis/scheduling.k8s.io/v1alpha2/namespaces/:namespace/workloads/:name",
+      "scheduling.k8s.io/v1alpha3/CompositePodGroup" =>
+        "apis/scheduling.k8s.io/v1alpha3/namespaces/:namespace/compositepodgroups/:name",
+      "scheduling.k8s.io/v1alpha3/PodGroup" =>
+        "apis/scheduling.k8s.io/v1alpha3/namespaces/:namespace/podgroups/:name",
+      "scheduling.k8s.io/v1alpha3/Workload" =>
+        "apis/scheduling.k8s.io/v1alpha3/namespaces/:namespace/workloads/:name",
+      "scheduling.k8s.io/v1beta1/PodGroup" =>
+        "apis/scheduling.k8s.io/v1beta1/namespaces/:namespace/podgroups/:name",
+      "scheduling.k8s.io/v1beta1/Workload" =>
+        "apis/scheduling.k8s.io/v1beta1/namespaces/:namespace/workloads/:name",
       "storage.k8s.io/v1/CSIDriver" => "apis/storage.k8s.io/v1/csidrivers/:name",
       "storage.k8s.io/v1/CSINode" => "apis/storage.k8s.io/v1/csinodes/:name",
       "storage.k8s.io/v1/CSIStorageCapacity" =>
@@ -228,8 +243,8 @@ defmodule Kubereq.Discovery.ResourcePathMapping do
       "storage.k8s.io/v1/VolumeAttachment" => "apis/storage.k8s.io/v1/volumeattachments/:name",
       "storage.k8s.io/v1/VolumeAttributesClass" =>
         "apis/storage.k8s.io/v1/volumeattributesclasses/:name",
-      "storage.k8s.io/v1beta1/VolumeAttributesClass" =>
-        "apis/storage.k8s.io/v1beta1/volumeattributesclasses/:name",
+      "storagemigration.k8s.io/v1/StorageVersionMigration" =>
+        "apis/storagemigration.k8s.io/v1/storageversionmigrations/:name",
       "storagemigration.k8s.io/v1beta1/StorageVersionMigration" =>
         "apis/storagemigration.k8s.io/v1beta1/storageversionmigrations/:name",
       "v1/Binding" => "api/v1/namespaces/:namespace/bindings/:name",
